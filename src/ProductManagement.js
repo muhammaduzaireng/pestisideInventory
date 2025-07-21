@@ -13,17 +13,17 @@ const ProductManagement = () => {
   }, []);
 
   const fetchProducts = async () => {
-    const response = await axios.get('http://faridagri.devzytic.com/api/products');
+    const response = await axios.get('https://faridagri.devzytic.com/api/products');
     setProducts(response.data);
   };
 
   const fetchVendors = async () => {
-    const response = await axios.get('http://faridagri.devzytic.com/api/vendors');
+    const response = await axios.get('https://faridagri.devzytic.com/api/vendors');
     setVendors(response.data);
   };
 
   const addProduct = async () => {
-    const response = await axios.post('http://faridagri.devzytic.com/api/products', newProduct);
+    const response = await axios.post('https://faridagri.devzytic.com/api/products', newProduct);
     setProducts([...products, response.data]);
     setNewProduct({ name: '', barcode: '', purchase_price: 0, sell_price: 0, stock: 0, vendor_id: '' });
   };

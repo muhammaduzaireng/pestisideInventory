@@ -16,7 +16,7 @@ const AddCreditPayment = () => {
 
   // Fetch customers on mount
   useEffect(() => {
-    axios.get('http://faridagri.devzytic.com/api/customers')
+    axios.get('https://faridagri.devzytic.com/api/customers')
       .then(res => setCustomers(res.data))
       .catch(() => setCustomers([]));
   }, []);
@@ -27,7 +27,7 @@ const AddCreditPayment = () => {
     setPendingAmount(0);
     if (selectedCustomer) {
       setLoadingBills(true);
-      axios.get(`http://faridagri.devzytic.com/api/credit-records?customer_id=${selectedCustomer}`)
+      axios.get(`https://faridagri.devzytic.com/api/credit-records?customer_id=${selectedCustomer}`)
         .then(res => {
           // Only show bills with pending credit
           setBills(res.data.filter(bill => bill.credit_amount > 0));
@@ -58,7 +58,7 @@ const AddCreditPayment = () => {
       return;
     }
     try {
-      const response = await axios.post('http://faridagri.devzytic.com/api/credit-payment', {
+      const response = await axios.post('https://faridagri.devzytic.com/api/credit-payment', {
         sale_id: selectedBillId,
         amount_paid: parseFloat(amountPaid),
         next_due_date: nextDueDate ? nextDueDate.toISOString().split('T')[0] : null,
@@ -67,7 +67,7 @@ const AddCreditPayment = () => {
       // Refresh bills
       setAmountPaid('');
       setNextDueDate(null);
-      axios.get(`http://faridagri.devzytic.com/api/credit-records?customer_id=${selectedCustomer}`)
+      axios.get(`https://faridagri.devzytic.com/api/credit-records?customer_id=${selectedCustomer}`)
         .then(res => setBills(res.data.filter(bill => bill.credit_amount > 0)));
       setSelectedBillId('');
       setPendingAmount(0);

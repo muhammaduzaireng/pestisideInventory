@@ -19,7 +19,7 @@ const CustomerRecords = () => {
 
   // Fetch customers on mount
   useEffect(() => {
-    axios.get('http://faridagri.devzytic.com/api/customers')
+    axios.get('https://faridagri.devzytic.com/api/customers')
       .then(res => setCustomers(res.data))
       .catch(() => setCustomers([]));
   }, []);
@@ -41,15 +41,15 @@ const CustomerRecords = () => {
       if (endDate) params.end_date = endDate;
 
       // Fetch Sell Records for the selected customer
-      const sellRes = await axios.get('http://faridagri.devzytic.com/api/sell-records', { params });
+      const sellRes = await axios.get('https://faridagri.devzytic.com/api/sell-records', { params });
       setSellRecords(sellRes.data);
 
       // Fetch Credit Records for the selected customer
-      const creditRes = await axios.get('http://faridagri.devzytic.com/api/credit-records', { params });
+      const creditRes = await axios.get('https://faridagri.devzytic.com/api/credit-records', { params });
       setCreditRecords(creditRes.data);
 
       // Fetch Credit Payments for the selected customer
-      const paymentRes = await axios.get('http://faridagri.devzytic.com/api/credit-payments', { params });
+      const paymentRes = await axios.get('https://faridagri.devzytic.com/api/credit-payments', { params });
       setCreditPayments(paymentRes.data);
 
     } catch (err) {
@@ -71,7 +71,7 @@ const CustomerRecords = () => {
     setSelectedBill(sellId);
     setBillDetail(null); // Clear previous bill details
     try {
-      const res = await axios.get(`http://faridagri.devzytic.com/api/sell/${sellId}`);
+      const res = await axios.get(`https://faridagri.devzytic.com/api/sell/${sellId}`);
       setBillDetail(res.data);
     } catch (err) {
       console.error("Error fetching bill details:", err);

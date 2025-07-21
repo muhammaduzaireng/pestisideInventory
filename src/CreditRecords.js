@@ -83,7 +83,7 @@ const CreditRecords = () => {
   });
   const [paymentHistory, setPaymentHistory] = useState({});
 
-  const API_URL = 'http://faridagri.devzytic.com/api';
+  const API_URL = 'https://faridagri.devzytic.com/api';
 
   // Fetch customers on mount
   useEffect(() => {

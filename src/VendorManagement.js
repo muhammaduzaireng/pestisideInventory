@@ -11,12 +11,12 @@ const VendorManagement = () => {
   }, []);
 
   const fetchVendors = async () => {
-    const response = await axios.get('http://faridagri.devzytic.com/api/vendors');
+    const response = await axios.get('https://faridagri.devzytic.com/api/vendors');
     setVendors(response.data);
   };
 
   const addVendor = async () => {
-    const response = await axios.post('http://faridagri.devzytic.com/api/vendors', newVendor);
+    const response = await axios.post('https://faridagri.devzytic.com/api/vendors', newVendor);
     setVendors([...vendors, response.data]);
     setNewVendor({ name: '', contact_person: '', phone: '', email: '', address: '' });
   };

@@ -11,12 +11,12 @@ const App = () => {
   }, []);
 
   const fetchUsers = async () => {
-    const response = await axios.get('http://faridagri.devzytic.com/api/users');
+    const response = await axios.get('https://faridagri.devzytic.com/api/users');
     setUsers(response.data);
   };
 
   const addUser = async () => {
-    const response = await axios.post('http://faridagri.devzytic.com/api/users', newUser);
+    const response = await axios.post('https://faridagri.devzytic.com/api/users', newUser);
     setUsers([...users, response.data]);
     setNewUser({ username: '', password: '', role: '', email: '' });
   };

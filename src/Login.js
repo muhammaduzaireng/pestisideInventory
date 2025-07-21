@@ -12,7 +12,7 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://faridagri.devzytic.com/api/login', {
+      const response = await axios.post('https://faridagri.devzytic.com/api/login', {
         username,
         password,
       });

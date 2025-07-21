@@ -45,7 +45,7 @@ const PurchaseInvoiceDetailModal = ({ invoiceId, onClose }) => {
   const [retryCount, setRetryCount] = useState(0);
   const maxRetries = 3;
 
-  const API_URL = 'http://faridagri.devzytic.com/api';
+  const API_URL = 'https://faridagri.devzytic.com/api';
 
   useEffect(() => {
     const fetchInvoiceDetails = async () => {

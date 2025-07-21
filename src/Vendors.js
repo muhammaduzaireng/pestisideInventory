@@ -23,7 +23,7 @@ import {
 import { Add, Edit, Delete } from '@mui/icons-material';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://faridagri.devzytic.com/api'; // Base API URL
+const API_BASE_URL = 'https://faridagri.devzytic.com/api'; // Base API URL
 
 const Vendors = () => {
   const [vendors, setVendors] = useState([]);

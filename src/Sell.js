@@ -52,7 +52,7 @@ const Sell = () => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
-  const API_URL = 'http://faridagri.devzytic.com/api';
+  const API_URL = 'https://faridagri.devzytic.com/api';
 
   useEffect(() => {
     fetchSales();

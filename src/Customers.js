@@ -11,12 +11,12 @@ const Customers = () => {
   }, []);
 
   const fetchCustomers = async () => {
-    const response = await axios.get('http://faridagri.devzytic.com/api/customers');
+    const response = await axios.get('https://faridagri.devzytic.com/api/customers');
     setCustomers(response.data);
   };
 
   const addCustomer = async () => {
-    const response = await axios.post('http://faridagri.devzytic.com/api/customers', newCustomer);
+    const response = await axios.post('https://faridagri.devzytic.com/api/customers', newCustomer);
     setCustomers([...customers, response.data]);
     setNewCustomer({ name: '', phone: '', email: '', address: '' });
   };

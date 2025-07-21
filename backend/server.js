@@ -60,7 +60,7 @@ app.use(helmet());
 app.use(cors({
   origin: [
     'https://faridagri.devzytic.com',
-    'http://faridagri.devzytic.com', // For development
+    'https://faridagri.devzytic.com', // For development
     
     'http://localhost:3000' // For local development
   ],

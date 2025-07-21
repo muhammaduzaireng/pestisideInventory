@@ -44,7 +44,7 @@ import {
 import axios from 'axios';
 
 const drawerWidth = 240;
-const API_URL = 'http://faridagri.devzytic.com/api';
+const API_URL = 'https://faridagri.devzytic.com/api';
 
 const DashboardHome = () => {
   const [productData, setProductData] = useState([]);

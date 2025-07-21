@@ -21,7 +21,7 @@ const Stock = () => {
 
   const fetchStock = async () => {
     try {
-      const response = await axios.get('http://faridagri.devzytic.com/api/products');
+      const response = await axios.get('https://faridagri.devzytic.com/api/products');
       setStock(response.data);
     } catch (error) {
       console.error('Error fetching stock:', error);

@@ -41,7 +41,7 @@ const SellInvoiceDetailModal = ({ invoiceId, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_URL = 'http://faridagri.devzytic.com/api';
+  const API_URL = 'https://faridagri.devzytic.com/api';
 
   useEffect(() => {
     const fetchInvoiceDetails = async () => {

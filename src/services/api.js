@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://faridagri.devzytic.com/api'; // Backend port
+const API_BASE_URL = 'https://faridagri.devzytic.com/api'; // Backend port
 
 const api = axios.create({
   baseURL: API_BASE_URL,
