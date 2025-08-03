@@ -60,8 +60,6 @@ app.use(helmet());
 app.use(cors({
   origin: [
     'https://faridagri.devzytic.com',
-    'https://faridagri.devzytic.com', // For development
-    
     'http://localhost:3000' // For local development
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -84,28 +82,21 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev')); // HTTP request logger
 
-// Static files (if serving frontend)
-app.use(express.static(path.join(__dirname, 'public')));
-
 // =============================================
 // 3. SUBDOMAIN-SPECIFIC CONFIGURATION
 // =============================================
 app.use((req, res, next) => {
-  // Attach subdomain info to request
   req.subdomain = req.headers.host.split('.')[0];
   next();
 });
 
 // =============================================
-// 4. ROUTES
+// 4. API ROUTES
 // =============================================
-// API Routes
 const apiRoutes = express.Router();
 
 // Auth Routes
 apiRoutes.use('/auth', require('./routes/auth'));
-
-// Resource Routes
 apiRoutes.use('/products', require('./routes/products'));
 apiRoutes.use('/customers', require('./routes/customers'));
 apiRoutes.use('/stock', require('./routes/stock'));
@@ -115,35 +106,32 @@ apiRoutes.use('/reports', require('./routes/reports'));
 apiRoutes.use('/credit', require('./routes/credit'));
 apiRoutes.use('/stock-purchases', require('./routes/stock-purchases'));
 
-// Mount API routes
 app.use('/api', apiRoutes);
 
-// Subdomain-specific root route
-app.get('/', (req, res) => {
-  if (req.subdomain === 'faridagri') {
-    return res.json({ 
-      message: 'FaridAgri API Service',
-      status: 'active',
-      version: '1.0.0'
-    });
-  }
-  res.json({ 
-    message: 'Devzytic Main API Service',
-    status: 'active',
-    version: '1.0.0'
-  });
+// =============================================
+// 5. FRONTEND ROUTES (CRUCIAL FOR REACT)
+// =============================================
+// Correctly serves static files from the 'build' folder,
+// which is one level up from the 'backend' directory.
+const buildPath = path.join(__dirname, '..', 'build');
+app.use(express.static(buildPath));
+
+// For Single Page Applications, this catch-all route ensures that any
+// request not handled by the API is served the 'index.html' file.
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(buildPath, 'index.html'));
 });
 
 // =============================================
-// 5. ERROR HANDLING
+// 6. ERROR HANDLING
 // =============================================
-// 404 Handler
-app.use((req, res, next) => {
-  res.status(404).json({
-    status: 'error',
-    message: 'Resource not found'
-  });
-});
+// 404 Handler (this is now redundant due to the '*' route, but kept for clarity)
+// app.use((req, res, next) => {
+//   res.status(404).json({
+//     status: 'error',
+//     message: 'Resource not found'
+//   });
+// });
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -156,12 +144,11 @@ app.use((err, req, res, next) => {
 });
 
 // =============================================
-// 6. SERVER INITIALIZATION
+// 7. SERVER INITIALIZATION
 // =============================================
 const PORT = process.env.PORT || 5001;
 const HOST = process.env.HOST || '0.0.0.0';
 
-// HTTPS/HTTP server
 if (process.env.NODE_ENV === 'production') {
   const https = require('https');
   const fs = require('fs');
@@ -181,163 +168,3 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 module.exports = app;
-// require('dotenv').config();
-// const express = require('express');
-// const cors = require('cors');
-// const helmet = require('helmet');
-// const rateLimit = require('express-rate-limit');
-// const morgan = require('morgan');
-// const path = require('path');
-
-// // Initialize Express
-// const app = express();
-
-// // Set default NODE_ENV to development if not specified
-// process.env.NODE_ENV = process.env.NODE_ENV || 'development';
-// console.log(`Environment: ${process.env.NODE_ENV}`);
-
-// // =============================================
-// // 1. SECURITY MIDDLEWARE
-// // =============================================
-// app.use(helmet());
-// app.use(cors({
-//   origin: process.env.NODE_ENV === 'production' ? [
-//     'https://faridagri.devzytic.com',
-//     'https://devzytic.com',
-//   ] : [
-//     'http://localhost:3000',
-//     'https://faridagri.devzytic.com',
-//   ],
-//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-//   credentials: true
-// }));
-
-// // Rate limiting (100 requests per 15 minutes)
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000,
-//   max: 100,
-//   message: 'Too many requests from this IP, please try again later'
-// });
-// app.use('/api', limiter);
-
-// // =============================================
-// // 2. APPLICATION MIDDLEWARE
-// // =============================================
-// app.use(express.json({ limit: '10kb' }));
-// app.use(express.urlencoded({ extended: true }));
-// app.use(morgan('dev')); // HTTP request logger
-
-// // Static files (if serving frontend)
-// app.use(express.static(path.join(__dirname, 'public')));
-
-// // =============================================
-// // 3. SUBDOMAIN-SPECIFIC CONFIGURATION
-// // =============================================
-// app.use((req, res, next) => {
-//   // Attach subdomain info to request
-//   req.subdomain = req.headers.host.split('.')[0];
-//   console.log(`Request received for subdomain: ${req.subdomain}, URL: ${req.url}`);
-//   next();
-// });
-
-// // =============================================
-// // 4. ROUTES
-// // =============================================
-// // API Routes
-// const apiRoutes = express.Router();
-
-// // Auth Routes
-// apiRoutes.use('/auth', require('./routes/auth'));
-// console.log('Loaded /api/auth route');
-
-// // Resource Routes
-// apiRoutes.use('/products', require('./routes/products'));
-// console.log('Loaded /api/products route');
-// apiRoutes.use('/customers', require('./routes/customers'));
-// console.log('Loaded /api/customers route');
-// apiRoutes.use('/stock', require('./routes/stock'));
-// console.log('Loaded /api/stock route');
-// apiRoutes.use('/sales', require('./routes/sales'));
-// console.log('Loaded /api/sales route');
-// apiRoutes.use('/vendors', require('./routes/vendors'));
-// console.log('Loaded /api/vendors route');
-// apiRoutes.use('/reports', require('./routes/reports'));
-// console.log('Loaded /api/reports route');
-// apiRoutes.use('/credit', require('./routes/credit'));
-// console.log('Loaded /api/credit route');
-// apiRoutes.use('/stock-purchases', require('./routes/stock-purchases'));
-// console.log('Loaded /api/stock-purchases route');
-
-// // Mount API routes
-// app.use('/api', apiRoutes);
-// console.log('Mounted API routes under /api');
-
-// // Subdomain-specific root route
-// app.get('/', (req, res) => {
-//   if (req.subdomain === 'faridagri') {
-//     return res.json({ 
-//       message: 'FaridAgri API Service',
-//       status: 'active',
-//       version: '1.0.0'
-//     });
-//   }
-//   res.json({ 
-//     message: 'Devzytic Main API Service',
-//     status: 'active',
-//     version: '1.0.0'
-//   });
-// });
-
-// // =============================================
-// // 5. ERROR HANDLING
-// // =============================================
-// // 404 Handler
-// app.use((req, res, next) => {
-//   console.error(`404 - Resource not found: ${req.method} ${req.url}`);
-//   res.status(404).json({
-//     status: 'error',
-//     message: 'Resource not found'
-//   });
-// });
-
-// // Global error handler
-// app.use((err, req, res, next) => {
-//   console.error('Global error:', {
-//     message: err.message,
-//     stack: err.stack,
-//     url: req.url,
-//     method: req.method
-//   });
-//   res.status(500).json({
-//     status: 'error',
-//     message: 'Internal server error',
-//     error: process.env.NODE_ENV === 'development' ? err.message : undefined
-//   });
-// });
-
-// // =============================================
-// // 6. SERVER INITIALIZATION
-// // =============================================
-// const PORT = process.env.PORT || 5001;
-// const HOST = process.env.HOST || '0.0.0.0';
-
-// if (process.env.NODE_ENV === 'production') {
-//   const https = require('https');
-//   const fs = require('fs');
-  
-//   const options = {
-//     key: fs.readFileSync('/etc/letsencrypt/live/devzytic.com/privkey.pem'),
-//     cert: fs.readFileSync('/etc/letsencrypt/live/devzytic.com/fullchain.pem')
-//   };
-  
-//   https.createServer(options, app).listen(PORT, HOST, () => {
-//     console.log(`Secure server running on https://${HOST}:${PORT}`);
-//   });
-// } else {
-//   app.listen(PORT, HOST, () => {
-//     console.log(`Server running on http://${HOST}:${PORT}`);
-//   });
-// }
-
-// module.exports = app;
