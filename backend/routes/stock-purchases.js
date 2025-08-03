@@ -10,9 +10,9 @@ function parseNumericFields(obj) {
   console.log('Parsing numeric fields for:', JSON.stringify(obj, null, 2));
   const result = {
     ...obj,
-    total_bill_amount: isNaN(parseFloat(obj.total_bill_amount)) || obj.total_bill_amount === null || obj.total_bill_amount === undefined ? 0 : parseFloat(obj.total_bill_amount.toFixed(2)),
-    amount_paid: isNaN(parseFloat(obj.amount_paid)) || obj.amount_paid === null || obj.amount_paid === undefined ? 0 : parseFloat(obj.amount_paid.toFixed(2)),
-    credit_amount: isNaN(parseFloat(obj.credit_amount)) || obj.credit_amount === null || obj.credit_amount === undefined ? 0 : parseFloat(obj.credit_amount.toFixed(2)),
+    total_bill_amount: parseFloatOrDefault(obj.total_bill_amount, 0),
+    amount_paid: parseFloatOrDefault(obj.amount_paid, 0),
+    credit_amount: parseFloatOrDefault(obj.credit_amount, 0),
   };
   if (Object.values(result).some(val => isNaN(val) && typeof val === 'number')) {
     throw new Error(`NaN detected in numeric fields: ${JSON.stringify(result, null, 2)}`);
@@ -21,14 +21,20 @@ function parseNumericFields(obj) {
   return result;
 }
 
+function parseFloatOrDefault(value, defaultValue) {
+  if (value === null || value === undefined) return defaultValue;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? defaultValue : parseFloat(parsed.toFixed(2));
+}
+
 function parseProductFields(products) {
   console.log('Parsing product fields:', JSON.stringify(products, null, 2));
   if (!Array.isArray(products) || products.length === 0) {
     throw new Error('Products array is empty or invalid');
   }
   const parsedProducts = products.map((item, index) => {
-    if (!item.product_id || item.added_stock === undefined || item.added_stock === null) {
-      throw new Error(`Missing product_id or added_stock for product at index ${index}: ${JSON.stringify(item)}`);
+    if (!item.product_id || item.added_stock == null) {
+      throw new Error(`Missing product_id or added_stock for product at index ${index}`);
     }
     const parsedStock = parseInt(item.added_stock);
     const parsedProductId = parseInt(item.product_id);
@@ -52,6 +58,10 @@ function parseProductFields(products) {
 function validateQueryParams(params, paramNames) {
   console.log('Validating query params:', JSON.stringify(params, null, 2));
   paramNames.forEach((name, index) => {
+    // Allow null for expiry_date as it's nullable in stock_entries
+    if (name === 'expiry_date' && params[index] === null) {
+      return;
+    }
     if (params[index] === null || params[index] === undefined || (typeof params[index] === 'number' && isNaN(params[index]))) {
       throw new Error(`Invalid or NaN value for ${name}: ${params[index]}`);
     }
@@ -170,27 +180,18 @@ router.post('/', async (req, res) => {
     );
     const invoiceId = invoiceResult.insertId;
     console.log('Inserted stock_purchase_invoices, invoiceId:', invoiceId);
-    if (!invoiceId || isNaN(invoiceId)) {
-      throw new Error(`Invalid invoiceId from stock_purchase_invoices: ${invoiceId}`);
-    }
 
     for (const [index, item] of parsedProducts.entries()) {
-      console.log(`Checking product at index ${index}:`, JSON.stringify(item, null, 2));
+      console.log(`Checking product at index ${index}:`, item.product_id);
       const [productCheck] = await connection.query('SELECT name, barcode, expiry_date_tracking, vendor_id FROM products WHERE id = ?', [
         item.product_id,
       ]);
-      console.log('Product check result:', JSON.stringify(productCheck, null, 2));
       if (productCheck.length === 0) {
         console.error(`Product not found at index ${index}:`, item.product_id);
         throw new Error(`Product with ID ${item.product_id} not found.`);
       }
-      const productVendorId = parseInt(productCheck[0].vendor_id);
-      if (isNaN(productVendorId) || productCheck[0].vendor_id === null) {
-        console.error(`Invalid or null vendor_id in products table for product ${item.product_id}:`, productCheck[0].vendor_id);
-        throw new Error(`Invalid or null vendor_id in products table for product ${item.product_id}`);
-      }
-      if (productVendorId !== parsedVendorId) {
-        console.error(`Product vendor mismatch at index ${index}:`, { product_id: item.product_id, product_vendor_id: productVendorId, vendor_id: parsedVendorId });
+      if (productCheck[0].vendor_id !== parsedVendorId) {
+        console.error(`Product vendor mismatch at index ${index}:`, { product_id: item.product_id, product_vendor_id: productCheck[0].vendor_id, vendor_id });
         throw new Error(`Product with ID ${item.product_id} does not belong to vendor ID ${vendor_id}.`);
       }
       const expiry_date_tracking = productCheck[0].expiry_date_tracking;
@@ -209,7 +210,7 @@ router.post('/', async (req, res) => {
         purchase_date,
         final_expiry_date,
         payment_method,
-        productVendorId,
+        parsedVendorId,
       ];
       console.log('Inserting into stock_entries with params:', JSON.stringify(stockEntryParams, null, 2));
       validateQueryParams(stockEntryParams, [
@@ -266,7 +267,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Remaining endpoints unchanged for brevity
 router.get('/', async (req, res) => {
   console.log('GET /api/stock-purchases received with query:', JSON.stringify(req.query, null, 2));
   try {
