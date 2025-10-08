@@ -1,0 +1,155 @@
+/* src/pages/SalesBillPage.css */
+
+.sales-bill-page {
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+.sales-bill-page h1 {
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+    margin-bottom: 30px;
+}
+
+/* --- List Controls (Search) --- */
+.list-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.search-input {
+    width: 300px;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+
+/* --- Bill List Table --- */
+.sales-bill-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.sales-bill-table th, 
+.sales-bill-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.sales-bill-table th {
+    background-color: #f4f7f6;
+    font-weight: bold;
+    color: #34495e;
+}
+
+/* Action Button: Collect Payment (Distinction from Pay Button) */
+.collect-btn {
+    background-color: #f39c12; /* Orange/Gold for Collection/Income */
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.collect-btn:hover {
+    background-color: #e67e22;
+}
+
+/* Status Colors */
+.status-paid { color: #2ecc71; font-weight: bold; } /* Green */
+.status-partial { color: #f39c12; font-weight: bold; } /* Orange */
+.status-unpaid { color: #e74c3c; font-weight: bold; } /* Red */
+
+.text-red { color: #e74c3c; }
+.text-green { color: #2ecc71; }
+.empty-row-msg { text-align: center; font-style: italic; color: #95a5a6; }
+
+
+/* --- Collection Modal (Payment Modal) --- */
+
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content.collection-modal {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    max-width: 450px;
+    width: 90%;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+}
+
+.modal-content.collection-modal h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #34495e;
+}
+
+.form-group input[type="text"], 
+.form-group input[type="number"], 
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.submit-btn {
+    background-color: #2ecc71; /* Green for successful collection */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.cancel-btn {
+    background-color: #95a5a6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+}

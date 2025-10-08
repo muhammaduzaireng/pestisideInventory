@@ -1,90 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Container, Typography, TextField, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+// src/App.js
 
-const App = () => {
-  const [users, setUsers] = useState([]);
-  const [newUser, setNewUser] = useState({ username: '', password: '', role: '', email: '' });
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import LoginPage from './pages/LoginPage';
+import DashboardLayout from './components/DashboardLayout';
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+// Mock authentication state (for now, just a boolean)
+const isAuthenticated = true; // Set this to false to see the login page first!
 
-  const fetchUsers = async () => {
-    const response = await axios.get('https://faridagri.devzytic.com/api/users');
-    setUsers(response.data);
-  };
-
-  const addUser = async () => {
-    const response = await axios.post('https://faridagri.devzytic.com/api/users', newUser);
-    setUsers([...users, response.data]);
-    setNewUser({ username: '', password: '', role: '', email: '' });
-  };
+function App() {
+  // In a real app, this state would be managed by Redux/Context and updated on successful login
+  const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated);
 
   return (
-    <Container>
-      <Typography variant="h3" gutterBottom>
-        User Management
-      </Typography>
-      <FormControl fullWidth margin="normal">
-        <TextField
-          label="Username"
-          value={newUser.username}
-          onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+    <Router>
+      <Routes>
+        {/* Route for the Login Page */}
+        <Route 
+          path="/login" 
+          element={<LoginPage onLogin={() => setIsLoggedIn(true)} />} 
         />
-      </FormControl>
-      <FormControl fullWidth margin="normal">
-        <TextField
-          label="Password"
-          type="password"
-          value={newUser.password}
-          onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+        
+        {/* Protected Route: Navigate to Dashboard if logged in, otherwise to Login */}
+        <Route 
+          path="/dashboard/*" // Use /* to match nested routes within the dashboard
+          element={isLoggedIn ? <DashboardLayout onLogout={() => setIsLoggedIn(false)} /> : <Navigate to="/login" replace />} 
         />
-      </FormControl>
-      <FormControl fullWidth margin="normal">
-        <InputLabel>Role</InputLabel>
-        <Select
-          value={newUser.role}
-          onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-        >
-          <MenuItem value="Admin">Admin</MenuItem>
-          <MenuItem value="Manager">Manager</MenuItem>
-          <MenuItem value="Worker">Worker</MenuItem>
-        </Select>
-      </FormControl>
-      <FormControl fullWidth margin="normal">
-        <TextField
-          label="Email"
-          type="email"
-          value={newUser.email}
-          onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+
+        {/* Default Route: Redirect to /dashboard if logged in, or /login if not */}
+        <Route 
+          path="/" 
+          element={<Navigate to={isLoggedIn ? "/dashboard/sale" : "/login"} replace />} 
         />
-      </FormControl>
-      <Button variant="contained" color="primary" onClick={addUser}>
-        Add User
-      </Button>
-      <TableContainer component={Paper} style={{ marginTop: '20px' }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Username</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Email</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.username}</TableCell>
-                <TableCell>{user.role}</TableCell>
-                <TableCell>{user.email}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Container>
+      </Routes>
+    </Router>
   );
-};
+}
 
 export default App;

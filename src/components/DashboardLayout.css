@@ -1,0 +1,20 @@
+/* src/components/DashboardLayout.css */
+
+.dashboard-container {
+    display: flex;
+    height: 100vh;
+    font-family: sans-serif;
+}
+
+.main-content {
+    flex: 1; /* Takes up the rest of the space */
+    display: flex;
+    flex-direction: column;
+}
+
+.content-area {
+    padding: 20px;
+    flex-grow: 1;
+    overflow-y: auto; /* Allows content to scroll */
+    background-color: #f4f7f6;
+}
