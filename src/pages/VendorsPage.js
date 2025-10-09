@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import './VendorsPage.css'; // Reuse existing CSS
 
 // --- API Configuration ---
-const API_BASE_URL = 'http://107.174.64.240:5002/api';
+const API_BASE_URL = 'https://107.174.64.240:5002/api';
 
 // --- Local Modal Component for Adding Products ---
 const LocalAddProductModal = ({ isOpen, onClose, onAddProduct, vendorName }) => {

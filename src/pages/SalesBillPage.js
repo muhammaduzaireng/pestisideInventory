@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import './SalesBillPage.css';
 
 // --- API CONFIGURATION ---
-const API_BASE_URL = 'http://107.174.64.240:5002/api';
+const API_BASE_URL = 'https://107.174.64.240:5002/api';
 
 function SalesBillPage() {
   const [salesBills, setSalesBills] = useState([]);
