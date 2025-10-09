@@ -78,9 +78,9 @@ router.post('/', async (req, res) => {
   if (cashPaid < 0 || creditRemaining < 0 || grandTotal <= 0) {
     return res.status(400).json({ error: 'Cash paid, credit remaining, and grand total must be non-negative.' });
   }
-  if (Math.abs((cashPaid + creditRemaining) - grandTotal) > 0.01) {
-    return res.status(400).json({ error: 'Cash paid plus credit remaining must equal grand total.' });
-  }
+  if (Math.abs((cashPaid + creditRemaining) - grandTotal) > 0.1) { // Increase to 0.1
+  return res.status(400).json({ error: 'Cash paid plus credit remaining must equal grand total.' });
+}
   for (const item of items) {
     if (!item.productId || item.quantity <= 0 || item.salePrice < 0) {
       return res.status(400).json({ error: 'Each item must have a valid product ID, positive quantity, and non-negative sale price.' });

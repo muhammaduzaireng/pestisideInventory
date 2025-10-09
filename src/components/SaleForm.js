@@ -3,7 +3,7 @@ import AddCustomerPage from '../pages/AddCustomerPage';
 import './SaleForm.css';
 
 // --- API Configuration ---
-const API_BASE_URL = 'http://localhost:5002/api';
+const API_BASE_URL = 'http://107.174.64.240:5002/api';
 
 // --- Constants ---
 const WALK_IN_CUSTOMER = {
@@ -103,11 +103,15 @@ function SaleForm() {
   }, [grandTotal, billDetails.paymentType, billDetails.cashPaid, billDetails.customer]);
 
   useEffect(() => {
-    setBillDetails(prev => ({
+  setBillDetails(prev => {
+    const cash = parseFloat(prev.cashPaid) || 0;
+    const remaining = grandTotal - cash;
+    return {
       ...prev,
-      creditRemaining: remainingCredit,
-    }));
-  }, [remainingCredit]);
+      creditRemaining: prev.paymentType === 'Cash' ? 0 : Math.max(0, remaining),
+    };
+  });
+}, [remainingCredit, billDetails.paymentType]);
 
   // --- HANDLERS ---
   const handleAddCustomer = async (newCustomer) => {
@@ -135,43 +139,51 @@ function SaleForm() {
     }
   };
 
-  const handleBillDetailChange = (e) => {
-    const { name, value } = e.target;
-    setBillDetails(prev => {
-      let newState = { ...prev, [name]: value };
+const handleBillDetailChange = (e) => {
+  const { name, value } = e.target;
+  setBillDetails(prev => {
+    let newState = { ...prev, [name]: value };
 
-      // Handle customer change
-      if (name === 'customer') {
-        const isWalkIn = parseInt(value) === WALK_IN_CUSTOMER.id;
-        newState.paymentType = isWalkIn ? 'Cash' : prev.paymentType;
-        newState.cashPaid = isWalkIn ? grandTotal.toFixed(2) : 0;
+    console.log('Before Update - billDetails:', prev);
+    console.log('Changing:', name, 'to:', value);
+
+    // Handle customer change
+    if (name === 'customer') {
+      const isWalkIn = parseInt(value) === WALK_IN_CUSTOMER.id;
+      newState.paymentType = isWalkIn ? 'Cash' : prev.paymentType;
+      newState.cashPaid = isWalkIn ? grandTotal : 0;
+      newState.creditRemaining = 0;
+    }
+
+    // Handle payment type change
+    if (name === 'paymentType') {
+      if (value === 'Cash') {
+        newState.cashPaid = grandTotal; // Raw number
         newState.creditRemaining = 0;
+      } else if (value === 'Credit') {
+        newState.cashPaid = 0;
+        newState.creditRemaining = grandTotal;
+      } else if (value === 'Cash+Credit') {
+        newState.cashPaid = 0;
+        newState.creditRemaining = grandTotal;
       }
+    }
 
-      // Handle payment type change
-      if (name === 'paymentType') {
-        if (value === 'Cash') {
-          newState.cashPaid = grandTotal.toFixed(2);
-          newState.creditRemaining = 0;
-        } else if (value === 'Credit') {
-          newState.cashPaid = 0;
-          newState.creditRemaining = grandTotal.toFixed(2);
-        } else {
-          newState.cashPaid = 0;
-          newState.creditRemaining = grandTotal.toFixed(2);
-        }
+    // Handle cash paid change
+    if (name === 'cashPaid') {
+      const cash = parseFloat(value) || 0;
+      if (prev.paymentType === 'Cash' && cash !== grandTotal) {
+        console.warn('Warning: For Cash payment, cashPaid must equal grandTotal');
+        newState.cashPaid = grandTotal; // Force exact match
       }
+      const remaining = grandTotal - cash;
+      newState.creditRemaining = Math.max(0, remaining);
+    }
 
-      // Handle cash paid change
-      if (name === 'cashPaid') {
-        const cash = parseFloat(value) || 0;
-        const remaining = grandTotal - cash;
-        newState.creditRemaining = Math.max(0, remaining).toFixed(2);
-      }
-
-      return newState;
-    });
-  };
+    console.log('After Update - billDetails:', newState);
+    return newState;
+  });
+};
 
   const handleProductSelection = (e) => {
     const productId = parseInt(e.target.value);
@@ -214,63 +226,76 @@ function SaleForm() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (selectedProducts.length === 0) {
-      alert('Please add at least one product.');
-      return;
-    }
+  if (selectedProducts.length === 0) {
+    alert('Please add at least one product.');
+    return;
+  }
 
-    if (billDetails.paymentType === 'Cash+Credit' && parseFloat(billDetails.cashPaid) > grandTotal) {
-      alert('Cash Paid cannot be more than the Grand Total.');
-      return;
-    }
+  if (billDetails.paymentType === 'Cash+Credit' && parseFloat(billDetails.cashPaid) > grandTotal) {
+    alert('Cash Paid cannot be more than the Grand Total.');
+    return;
+  }
 
-    const saleData = {
-      billNumber: billDetails.billNumber,
-      customerId: parseInt(billDetails.customer),
-      paymentType: billDetails.paymentType,
-      cashPaid: parseFloat(billDetails.cashPaid) || 0,
-      creditRemaining: parseFloat(billDetails.creditRemaining) || 0,
-      grandTotal: grandTotal.toFixed(2),
-      items: selectedProducts.map(item => ({
-        productId: item.id,
-        quantity: item.quantity,
-        salePrice: item.salePrice,
-      })),
-    };
+  // New validation for Cash
+  if (billDetails.paymentType === 'Cash' && parseFloat(billDetails.cashPaid) !== grandTotal) {
+    alert('For Cash payment, the Cash Paid must equal the Grand Total.');
+    return;
+  }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/sale_bills`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(saleData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save sale');
-      }
-
-      const savedSale = await response.json();
-      alert(`Sale recorded for Bill #${savedSale.bill_number}. Total: PKR ${grandTotal.toFixed(2)}. Cash Paid: PKR ${billDetails.cashPaid}. Credit Remaining: PKR ${billDetails.creditRemaining}`);
-      
-      // Reset form
-      setBillDetails({
-        billNumber: '',
-        customer: customers[0]?.id || null,
-        paymentType: 'Cash',
-        cashPaid: 0,
-        creditRemaining: 0,
-      });
-      setSelectedProducts([]);
-      setAvailableProducts(prev => [...prev, ...selectedProducts]);
-      fetchData(); // Refresh products to update stock
-    } catch (err) {
-      console.error('Error saving sale:', err);
-      alert('Failed to save sale: ' + err.message);
-    }
+  const saleData = {
+    billNumber: billDetails.billNumber,
+    customerId: parseInt(billDetails.customer),
+    paymentType: billDetails.paymentType,
+    cashPaid: parseFloat(billDetails.cashPaid) || 0,
+    creditRemaining: parseFloat(billDetails.creditRemaining) || 0,
+    grandTotal: grandTotal,
+    items: selectedProducts.map(item => ({
+      productId: item.id,
+      quantity: item.quantity,
+      salePrice: item.salePrice,
+    })),
   };
+
+  console.log('Sale Data being sent:', saleData); // Debug log
+  console.log('Validation Check:', {
+    cashPaid: parseFloat(billDetails.cashPaid),
+    creditRemaining: parseFloat(billDetails.creditRemaining),
+    grandTotal: grandTotal,
+    sum: parseFloat(billDetails.cashPaid) + parseFloat(billDetails.creditRemaining),
+  }); // Debug log
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/sale_bills`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(saleData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to save sale');
+    }
+
+    const savedSale = await response.json();
+    alert(`Sale recorded for Bill #${savedSale.bill_number}. Total: PKR ${grandTotal.toFixed(2)}. Cash Paid: PKR ${billDetails.cashPaid}. Credit Remaining: PKR ${billDetails.creditRemaining}`);
+    
+    setBillDetails({
+      billNumber: '',
+      customer: customers[0]?.id || null,
+      paymentType: 'Cash',
+      cashPaid: 0,
+      creditRemaining: 0,
+    });
+    setSelectedProducts([]);
+    setAvailableProducts(prev => [...prev, ...selectedProducts]);
+    fetchData();
+  } catch (err) {
+    console.error('Error saving sale:', err);
+    alert('Failed to save sale: ' + err.message);
+  }
+};
 
   // --- RENDERING ---
   if (isLoading) {
