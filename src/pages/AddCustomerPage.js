@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import './AddCustomerPage.css'; 
 
-const API_BASE_URL = 'https://107.174.64.240:5002/api';
+const API_BASE_URL = 'http://107.174.64.240:5002/api';
 
 // ⬅️ FIX: Provide default empty functions for props. This prevents the crash 
 // if the parent (CustomerAccountsPage) fails to pass them correctly.

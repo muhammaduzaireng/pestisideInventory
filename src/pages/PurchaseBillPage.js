@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import './PurchaseBillPage.css';
 
 // --- API Configuration ---
-const API_BASE_URL = 'https://107.174.64.240:5002/api';
+const API_BASE_URL = 'http://107.174.64.240:5002/api';
 
 // --- INITIAL FORM STATE ---
 const initialBillState = {
