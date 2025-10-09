@@ -3,7 +3,7 @@ import './CustomerAccountsPage.css';
 import AddCustomerPage from './AddCustomerPage';
 
 // --- API CONFIGURATION ---
-const API_BASE_URL = 'http://107.174.64.240:5002/api';
+const API_BASE_URL = 'https://api.faridagri.devzytic.com/api';
 
 // --- COMPONENTS ---
 
