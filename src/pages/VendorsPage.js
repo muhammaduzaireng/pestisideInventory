@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import './VendorsPage.css'; // Reuse existing CSS
 
 // --- API Configuration ---
-const API_BASE_URL = 'https://api.faridagri.devzytic.com/api';
+const API_BASE_URL = 'https://api.devzytic.com/api';
 
 // --- Local Modal Component for Adding Products ---
 const LocalAddProductModal = ({ isOpen, onClose, onAddProduct, vendorName }) => {
