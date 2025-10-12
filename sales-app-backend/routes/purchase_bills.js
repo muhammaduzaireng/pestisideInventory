@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { query } = require('../db');
+const db = require('../db');
 
 // GET /api/purchase_bills - Fetch all purchase bills with products and payments
 router.get('/', async (req, res) => {
   try {
-    const result = await query(`
+    // First get all purchase bills with vendor info
+    const bills = await db.query(`
       SELECT 
         pb.bill_id,
         pb.invoice_no,
@@ -15,37 +16,47 @@ router.get('/', async (req, res) => {
         pb.total_amount,
         pb.paid_amount,
         pb.balance,
-        pb.payment_type,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'productId', pbp.product_id,
-              'name', p.name,
-              'qty', pbp.quantity,
-              'price', pbp.price
-            )
-          )
-          FROM purchase_bill_products pbp
-          JOIN products p ON pbp.product_id = p.product_id
-          WHERE pbp.bill_id = pb.bill_id
-        ), '[]') AS products,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'amount', pbpay.amount,
-              'source', pbpay.source,
-              'date', pbpay.date,
-              'prNumber', pbpay.pr_number
-            )
-          )
-          FROM purchase_bill_payments pbpay
-          WHERE pbpay.bill_id = pb.bill_id
-        ), '[]') AS payments
+        pb.payment_type
       FROM purchase_bills pb
       JOIN vendors v ON pb.vendor_id = v.vendor_id
       ORDER BY pb.date DESC
     `);
-    res.status(200).json(result.rows);
+
+    // Then get products and payments for each bill
+    const billsWithDetails = await Promise.all(
+      bills.map(async (bill) => {
+        // Get products for this bill
+        const products = await db.query(`
+          SELECT 
+            pbp.product_id as productId,
+            p.name,
+            pbp.quantity as qty,
+            pbp.price
+          FROM purchase_bill_products pbp
+          JOIN products p ON pbp.product_id = p.product_id
+          WHERE pbp.bill_id = ?
+        `, [bill.bill_id]);
+
+        // Get payments for this bill
+        const payments = await db.query(`
+          SELECT 
+            amount,
+            source,
+            date,
+            pr_number as prNumber
+          FROM purchase_bill_payments 
+          WHERE bill_id = ?
+        `, [bill.bill_id]);
+
+        return {
+          ...bill,
+          products: products,
+          payments: payments
+        };
+      })
+    );
+
+    res.status(200).json(billsWithDetails);
   } catch (err) {
     console.error('Error fetching purchase bills:', err);
     res.status(500).json({ error: 'Failed to fetch purchase bills' });
@@ -61,110 +72,92 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Invoice number, vendor, date, payment type, and at least one product are required.' });
   }
 
+  let connection;
   try {
     // Start a transaction
-    await query('BEGIN');
+    connection = await db.beginTransaction();
 
-    // Insert purchase bill
-    const billQuery = `
-      INSERT INTO purchase_bills (invoice_no, vendor_id, date, total_amount, paid_amount, payment_type)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *;
-    `;
+    // Calculate total amount
     const totalAmount = products.reduce((sum, p) => sum + p.quantity * p.price, 0);
     const paidAmount = payment && payment.amount > 0 ? payment.amount : 0;
-    const billResult = await query(billQuery, [
-      invoiceNo,
-      vendorId,
-      date,
-      totalAmount,
-      paidAmount,
-      paymentType
-    ]);
 
-    const billId = billResult.rows[0].bill_id;
+    // Insert purchase bill
+    const billResult = await connection.run(`
+      INSERT INTO purchase_bills (invoice_no, vendor_id, date, total_amount, paid_amount, payment_type)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [invoiceNo, vendorId, date, totalAmount, paidAmount, paymentType]);
+
+    const billId = billResult.id;
+
+    // Get the inserted bill
+    const bill = await connection.get(`
+      SELECT * FROM purchase_bills WHERE bill_id = ?
+    `, [billId]);
 
     // Insert products and update stock
     for (const product of products) {
-      const productQuery = `
+      await connection.run(`
         INSERT INTO purchase_bill_products (bill_id, product_id, quantity, price)
-        VALUES ($1, $2, $3, $4);
-      `;
-      await query(productQuery, [billId, product.productId, product.quantity, product.price]);
+        VALUES (?, ?, ?, ?)
+      `, [billId, product.productId, product.quantity, product.price]);
 
       // Update stock in products table
-      await query(`
+      await connection.run(`
         UPDATE products
-        SET stock = stock + $1
-        WHERE product_id = $2
+        SET stock = stock + ?
+        WHERE product_id = ?
       `, [product.quantity, product.productId]);
     }
 
     // Insert initial payment if provided
     if (payment && payment.amount > 0) {
-      const paymentQuery = `
+      await connection.run(`
         INSERT INTO purchase_bill_payments (bill_id, amount, source, date, pr_number)
-        VALUES ($1, $2, $3, $4, $5);
-      `;
-      await query(paymentQuery, [
-        billId,
-        payment.amount,
-        payment.source,
-        payment.date,
-        payment.prNumber || null
-      ]);
+        VALUES (?, ?, ?, ?, ?)
+      `, [billId, payment.amount, payment.source, payment.date, payment.prNumber || null]);
     }
 
     // Commit transaction
-    await query('COMMIT');
+    await db.commit(connection);
 
     // Fetch the full bill with products and payments
-    const fetchBill = await query(`
+    const vendorInfo = await db.get(`
+      SELECT name FROM vendors WHERE vendor_id = ?
+    `, [vendorId]);
+
+    // Get products for this bill
+    const billProducts = await db.query(`
       SELECT 
-        pb.bill_id,
-        pb.invoice_no,
-        pb.vendor_id,
-        v.name AS vendor_name,
-        pb.date,
-        pb.total_amount,
-        pb.paid_amount,
-        pb.balance,
-        pb.payment_type,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'productId', pbp.product_id,
-              'name', p.name,
-              'qty', pbp.quantity,
-              'price', pbp.price
-            )
-          )
-          FROM purchase_bill_products pbp
-          JOIN products p ON pbp.product_id = p.product_id
-          WHERE pbp.bill_id = pb.bill_id
-        ), '[]') AS products,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'amount', pbpay.amount,
-              'source', pbpay.source,
-              'date', pbpay.date,
-              'prNumber', pbpay.pr_number
-            )
-          )
-          FROM purchase_bill_payments pbpay
-          WHERE pbpay.bill_id = pb.bill_id
-        ), '[]') AS payments
-      FROM purchase_bills pb
-      JOIN vendors v ON pb.vendor_id = v.vendor_id
-      WHERE pb.bill_id = $1
+        pbp.product_id as productId,
+        p.name,
+        pbp.quantity as qty,
+        pbp.price
+      FROM purchase_bill_products pbp
+      JOIN products p ON pbp.product_id = p.product_id
+      WHERE pbp.bill_id = ?
     `, [billId]);
 
-    res.status(201).json(fetchBill.rows[0]);
+    // Get payments for this bill
+    const billPayments = await db.query(`
+      SELECT 
+        amount,
+        source,
+        date,
+        pr_number as prNumber
+      FROM purchase_bill_payments 
+      WHERE bill_id = ?
+    `, [billId]);
+
+    res.status(201).json({
+      ...bill,
+      vendor_name: vendorInfo.name,
+      products: billProducts,
+      payments: billPayments
+    });
   } catch (err) {
-    await query('ROLLBACK');
+    if (connection) await db.rollback(connection);
     console.error('Error creating purchase bill:', err);
-    if (err.code === '23505') {
+    if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'Invoice number already exists.' });
     }
     res.status(500).json({ error: 'Failed to create purchase bill' });
@@ -180,91 +173,85 @@ router.post('/:bill_id/payments', async (req, res) => {
     return res.status(400).json({ error: 'Amount, source, and date are required.' });
   }
 
+  let connection;
   try {
-    // Check current balance
-    const billQuery = `
-      SELECT balance
-      FROM purchase_bills
-      WHERE bill_id = $1
-    `;
-    const billResult = await query(billQuery, [bill_id]);
-    if (billResult.rows.length === 0) {
+    // Start transaction
+    connection = await db.beginTransaction();
+
+    // Check current balance and get vendor info
+    const billResult = await connection.query(`
+      SELECT pb.balance, pb.vendor_id, v.name as vendor_name
+      FROM purchase_bills pb
+      JOIN vendors v ON pb.vendor_id = v.vendor_id
+      WHERE pb.bill_id = ?
+    `, [bill_id]);
+    
+    if (billResult.length === 0) {
+      await db.rollback(connection);
       return res.status(404).json({ error: 'Purchase bill not found.' });
     }
-    const balance = billResult.rows[0].balance;
+    
+    const balance = billResult[0].balance;
+    const vendorId = billResult[0].vendor_id;
+    const vendorName = billResult[0].vendor_name;
 
     if (amount > balance) {
+      await db.rollback(connection);
       return res.status(400).json({ error: 'Payment amount exceeds remaining balance.' });
     }
 
-    // Start transaction
-    await query('BEGIN');
-
     // Insert payment
-    const paymentQuery = `
+    await connection.run(`
       INSERT INTO purchase_bill_payments (bill_id, amount, source, date, pr_number)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *;
-    `;
-    await query(paymentQuery, [bill_id, amount, source, date, prNumber || null]);
+      VALUES (?, ?, ?, ?, ?)
+    `, [bill_id, amount, source, date, prNumber || null]);
 
     // Update bill's paid_amount
-    const updateBillQuery = `
+    await connection.run(`
       UPDATE purchase_bills
-      SET paid_amount = paid_amount + $1
-      WHERE bill_id = $2
-      RETURNING *;
-    `;
-    await query(updateBillQuery, [amount, bill_id]);
+      SET paid_amount = paid_amount + ?
+      WHERE bill_id = ?
+    `, [amount, bill_id]);
 
     // Commit transaction
-    await query('COMMIT');
+    await db.commit(connection);
 
-    // Fetch updated bill
-    const fetchBill = await query(`
-      SELECT 
-        pb.bill_id,
-        pb.invoice_no,
-        pb.vendor_id,
-        v.name AS vendor_name,
-        pb.date,
-        pb.total_amount,
-        pb.paid_amount,
-        pb.balance,
-        pb.payment_type,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'productId', pbp.product_id,
-              'name', p.name,
-              'qty', pbp.quantity,
-              'price', pbp.price
-            )
-          )
-          FROM purchase_bill_products pbp
-          JOIN products p ON pbp.product_id = p.product_id
-          WHERE pbp.bill_id = pb.bill_id
-        ), '[]') AS products,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'amount', pbpay.amount,
-              'source', pbpay.source,
-              'date', pbpay.date,
-              'prNumber', pbpay.pr_number
-            )
-          )
-          FROM purchase_bill_payments pbpay
-          WHERE pbpay.bill_id = pb.bill_id
-        ), '[]') AS payments
-      FROM purchase_bills pb
-      JOIN vendors v ON pb.vendor_id = v.vendor_id
-      WHERE pb.bill_id = $1
+    // Fetch updated bill details
+    const updatedBill = await db.get(`
+      SELECT * FROM purchase_bills WHERE bill_id = ?
     `, [bill_id]);
 
-    res.status(200).json(fetchBill.rows[0]);
+    // Get products for this bill
+    const billProducts = await db.query(`
+      SELECT 
+        pbp.product_id as productId,
+        p.name,
+        pbp.quantity as qty,
+        pbp.price
+      FROM purchase_bill_products pbp
+      JOIN products p ON pbp.product_id = p.product_id
+      WHERE pbp.bill_id = ?
+    `, [bill_id]);
+
+    // Get payments for this bill
+    const billPayments = await db.query(`
+      SELECT 
+        amount,
+        source,
+        date,
+        pr_number as prNumber
+      FROM purchase_bill_payments 
+      WHERE bill_id = ?
+    `, [bill_id]);
+
+    res.status(200).json({
+      ...updatedBill,
+      vendor_name: vendorName,
+      products: billProducts,
+      payments: billPayments
+    });
   } catch (err) {
-    await query('ROLLBACK');
+    if (connection) await db.rollback(connection);
     console.error('Error adding payment:', err);
     res.status(500).json({ error: 'Failed to add payment' });
   }
@@ -273,12 +260,12 @@ router.post('/:bill_id/payments', async (req, res) => {
 // GET /api/purchase_bills/vendors - Fetch all vendors for dropdown
 router.get('/vendors', async (req, res) => {
   try {
-    const result = await query(`
+    const result = await db.query(`
       SELECT vendor_id AS id, name
       FROM vendors
       ORDER BY name ASC
     `);
-    res.status(200).json(result.rows);
+    res.status(200).json(result);
   } catch (err) {
     console.error('Error fetching vendors:', err);
     res.status(500).json({ error: 'Failed to fetch vendors' });
@@ -288,7 +275,7 @@ router.get('/vendors', async (req, res) => {
 // GET /api/purchase_bills/products - Fetch all products for dropdown
 router.get('/products', async (req, res) => {
   try {
-    const result = await query(`
+    const result = await db.query(`
       SELECT 
         product_id AS id,
         name,
@@ -299,7 +286,7 @@ router.get('/products', async (req, res) => {
       FROM products
       ORDER BY name ASC
     `);
-    res.status(200).json(result.rows);
+    res.status(200).json(result);
   } catch (err) {
     console.error('Error fetching products:', err);
     res.status(500).json({ error: 'Failed to fetch products' });
@@ -313,6 +300,66 @@ router.get('/payment_sources', async (req, res) => {
   } catch (err) {
     console.error('Error fetching payment sources:', err);
     res.status(500).json({ error: 'Failed to fetch payment sources' });
+  }
+});
+
+// GET /api/purchase_bills/:id - Get a single purchase bill with details
+router.get('/:id', async (req, res) => {
+  try {
+    const billId = req.params.id;
+
+    // Get bill with vendor info
+    const bill = await db.get(`
+      SELECT 
+        pb.bill_id,
+        pb.invoice_no,
+        pb.vendor_id,
+        v.name AS vendor_name,
+        pb.date,
+        pb.total_amount,
+        pb.paid_amount,
+        pb.balance,
+        pb.payment_type
+      FROM purchase_bills pb
+      JOIN vendors v ON pb.vendor_id = v.vendor_id
+      WHERE pb.bill_id = ?
+    `, [billId]);
+
+    if (!bill) {
+      return res.status(404).json({ error: 'Purchase bill not found' });
+    }
+
+    // Get products for this bill
+    const products = await db.query(`
+      SELECT 
+        pbp.product_id as productId,
+        p.name,
+        pbp.quantity as qty,
+        pbp.price
+      FROM purchase_bill_products pbp
+      JOIN products p ON pbp.product_id = p.product_id
+      WHERE pbp.bill_id = ?
+    `, [billId]);
+
+    // Get payments for this bill
+    const payments = await db.query(`
+      SELECT 
+        amount,
+        source,
+        date,
+        pr_number as prNumber
+      FROM purchase_bill_payments 
+      WHERE bill_id = ?
+    `, [billId]);
+
+    res.json({
+      ...bill,
+      products: products,
+      payments: payments
+    });
+  } catch (err) {
+    console.error('Error fetching purchase bill:', err);
+    res.status(500).json({ error: 'Failed to fetch purchase bill' });
   }
 });
 

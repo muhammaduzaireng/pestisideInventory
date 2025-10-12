@@ -1,8 +1,8 @@
-// sales-app-backend/db.js - UPDATED FOR MYSQL
-const mysql = require('mysql2/promise');
+// sales-app-backend/db.js - MySQL Version
+const mysql = require('mysql2');
 require('dotenv').config();
 
-// Create a connection pool using environment variables
+// Create MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -11,23 +11,66 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  timezone: '+00:00'
 });
 
-// Test the connection when the application starts
-async function testConnection() {
-  try {
-    const connection = await pool.getConnection();
-    console.log('✅ Successfully connected to MySQL database!');
-    connection.release();
-  } catch (err) {
-    console.error('❌ Error connecting to MySQL database. Check .env credentials.', err.message);
+// Create promise wrapper for async/await
+const promisePool = pool.promise();
+
+// Test connection
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error('❌ Error connecting to MySQL database:', err.message);
+    return;
   }
-}
+  console.log('✅ Connected to Hostinger MySQL database');
+  connection.release();
+});
 
-testConnection();
+// Database methods
+const db = {
+  // For SELECT queries
+  query: (sql, params = []) => {
+    return promisePool.execute(sql, params)
+      .then(([rows]) => rows)
+      .catch(err => {
+        console.error('Query Error:', err);
+        throw err;
+      });
+  },
 
-module.exports = {
-  query: (text, params) => pool.execute(text, params),
-  pool
+  // For INSERT, UPDATE, DELETE
+  run: (sql, params = []) => {
+    return promisePool.execute(sql, params)
+      .then(([result]) => ({
+        id: result.insertId,
+        changes: result.affectedRows
+      }))
+      .catch(err => {
+        console.error('Run Error:', err);
+        throw err;
+      });
+  },
+
+  // For single row SELECT
+  get: (sql, params = []) => {
+    return promisePool.execute(sql, params)
+      .then(([rows]) => rows[0] || null)
+      .catch(err => {
+        console.error('Get Error:', err);
+        throw err;
+      });
+  },
+
+  // For transactions
+  beginTransaction: () => promisePool.getConnection().then(conn => {
+    return conn.beginTransaction().then(() => conn);
+  }),
+
+  commit: (conn) => conn.commit().then(() => conn.release()),
+  
+  rollback: (conn) => conn.rollback().then(() => conn.release())
 };
+
+module.exports = db;
