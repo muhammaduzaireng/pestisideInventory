@@ -1,27 +1,33 @@
-// sales-app-backend/db.js
-
-const { Pool } = require('pg');
+// sales-app-backend/db.js - UPDATED FOR MYSQL
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 // Create a connection pool using environment variables
-const pool = new Pool({
-  user: process.env.DB_USER,
+const pool = mysql.createPool({
   host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
+  user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
+  database: process.env.DB_DATABASE,
+  port: process.env.DB_PORT || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
 // Test the connection when the application starts
-pool.connect((err, client, release) => {
-  if (err) {
-    return console.error('Error acquiring client from pool. Check .env credentials.', err.stack);
+async function testConnection() {
+  try {
+    const connection = await pool.getConnection();
+    console.log('✅ Successfully connected to MySQL database!');
+    connection.release();
+  } catch (err) {
+    console.error('❌ Error connecting to MySQL database. Check .env credentials.', err.message);
   }
-  console.log('Successfully connected to PostgreSQL database!');
-  release();
-});
+}
+
+testConnection();
 
 module.exports = {
-  query: (text, params) => pool.query(text, params),
-  pool, // Export the pool itself, which create_tables.js needs
+  query: (text, params) => pool.execute(text, params),
+  pool
 };
