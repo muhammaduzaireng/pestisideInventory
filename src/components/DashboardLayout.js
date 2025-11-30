@@ -15,6 +15,8 @@ import CustomerAccountsPage from '../pages/CustomerAccountsPage';
 import PurchaseBillPage from '../pages/PurchaseBillPage';
 import SalesBillPage from '../pages/SalesBillPage';
 import AddCustomerPage from '../pages/AddCustomerPage';
+import PreviousBillsPage from '../pages/PreviousBills';
+
 
 // ... import other pages as needed
 // ... and so on for all others
@@ -37,6 +39,7 @@ function DashboardLayout({ onLogout }) {
             <Route path="/purchase-bill" element={<PurchaseBillPage />} />
             <Route path="/sales-bill" element={<SalesBillPage />} />
             <Route path="/stock-purchases" element={<h2>Stock Purchases Page</h2>} />
+            <Route path="/previous-bills" element={<PreviousBillsPage />} />
             {/* ... other routes for your menu items */}
             <Route path="/" element={<SalePage />} /> {/* Default content */}
           </Routes>

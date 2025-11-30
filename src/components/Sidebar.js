@@ -13,6 +13,7 @@ const menuItems = [
   { name: 'Purchase Bill', path: 'purchase-bill' },
   { name: 'Sales Bill', path: 'sales-bill' },
   { name: 'Add Customer', path: 'add-customer' },
+  { name: 'Previous Bills', path: 'previous-bills' },
 ];
 
 function Sidebar() {

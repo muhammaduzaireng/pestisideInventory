@@ -5,6 +5,8 @@ const vendorRoutes = require('./routes/vendors');
 const purchaseBillRoutes = require('./routes/purchase_bills');
 const saleBillRoutes = require('./routes/sale_bills');
 const productRoutes = require('./routes/products');
+const previousBillsRoutes = require('./routes/previousBills');
+
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -58,6 +60,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/purchase_bills', purchaseBillRoutes);
 app.use('/api/sale_bills', saleBillRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/customers', previousBillsRoutes);
 
 // Health check - accessible at https://api.devzytic.com/
 app.get('/', (req, res) => {
