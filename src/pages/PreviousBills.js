@@ -7,9 +7,9 @@ const API_BASE_URL = "https://api.devzytic.com/api";
 export default function PreviousBillsPage() {
     const [customers, setCustomers] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState("");
-    const [billNumber, setBillNumber] = useState("");
+    const [previousBillNumber, setPreviousBillNumber] = useState("");
     const [diaryNumber, setDiaryNumber] = useState("");
-    const [outstanding, setOutstanding] = useState("");
+    const [balance, setBalance] = useState("");
     const [message, setMessage] = useState("");
     const [messageType, setMessageType] = useState("success");
     const [view, setView] = useState("form");
@@ -25,7 +25,8 @@ export default function PreviousBillsPage() {
     // Add previous bill
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedCustomer || !billNumber || !diaryNumber || !outstanding) {
+
+        if (!selectedCustomer || !previousBillNumber || !diaryNumber || !balance) {
             setMessageType("error");
             setMessage("All fields are required!");
             return;
@@ -33,29 +34,32 @@ export default function PreviousBillsPage() {
 
         try {
             const res = await fetch(`${API_BASE_URL}/customers/${selectedCustomer}/previous-bill`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    previous_bill_number: billNumber,
-                    previous_diary_number: diaryNumber,
-                    outstanding_amount: parseFloat(outstanding)
-                })
-            });
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+        previous_bill_number: previousBillNumber,      // matches backend
+        previous_diary_number: diaryNumber,            // matches backend
+        amount: parseFloat(balance)                    // matches backend
+    })
+});
+
+
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to add previous bill");
 
             setMessageType("success");
             setMessage("Previous bill added successfully!");
-            setBillNumber("");
+            setPreviousBillNumber("");
             setDiaryNumber("");
-            setOutstanding("");
+            setBalance("");
+
         } catch (err) {
             setMessageType("error");
             setMessage(err.message || "Failed to add previous bill");
         }
     };
 
-    // Callback after adding customer
+    // Callback after adding a new customer
     const handleCustomerSaved = (newCustomer) => {
         setCustomers(prev => [...prev, newCustomer]);
         setSelectedCustomer(newCustomer.customer_id);
@@ -69,43 +73,72 @@ export default function PreviousBillsPage() {
     return (
         <div className="previous-bills-page">
             <h2>Add Previous Bill</h2>
-            {message && <p className={messageType === "error" ? "error" : "success"}>{message}</p>}
 
-            <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                    <label>Select Customer</label>
-                    <div className="customer-select-container">
-                        <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}>
-                            <option value="">-- Select Customer --</option>
-                            {customers.map(c => (
-                                <option key={c.customer_id} value={c.customer_id}>
-                                    {c.name} {c.phone ? `- ${c.phone}` : ""}
-                                </option>
-                            ))}
-                        </select>
-                        <button type="button" className="add-customer-btn" onClick={() => setView("addCustomer")}>
-                            + Add Customer
-                        </button>
-                    </div>
-                </div>
+            {message && (
+                <p className={`message ${messageType === "error" ? "error" : "success"}`}>
+                    {message}
+                </p>
+            )}
 
-                <div className="form-group">
-                    <label>Bill Number</label>
-                    <input type="text" value={billNumber} onChange={e => setBillNumber(e.target.value)} placeholder="Enter previous bill number" />
-                </div>
+            <form className="previous-bill-form" onSubmit={handleSubmit}>
+  <div className="form-group">
+    <label>Select Customer</label>
+    <div className="customer-select-wrapper">
+      <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}>
+        <option value="">-- Select Customer --</option>
+        {customers.map(c => (
+          <option key={c.customer_id} value={c.customer_id}>
+            {c.name} {c.phone ? `- ${c.phone}` : ""}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="add-customer-btn"
+        onClick={() => setView("addCustomer")}
+      >
+        + Add Customer
+      </button>
+    </div>
+  </div>
 
-                <div className="form-group">
-                    <label>Diary Number</label>
-                    <input type="text" value={diaryNumber} onChange={e => setDiaryNumber(e.target.value)} placeholder="Enter diary number" />
-                </div>
+  <div className="form-group">
+    <label>Previous Bill Number</label>
+    <input
+      type="text"
+      value={previousBillNumber}
+      onChange={e => setPreviousBillNumber(e.target.value)}
+      placeholder="Enter previous bill number"
+      required
+    />
+  </div>
 
-                <div className="form-group">
-                    <label>Outstanding Amount</label>
-                    <input type="number" value={outstanding} onChange={e => setOutstanding(e.target.value)} placeholder="Enter amount" />
-                </div>
+  <div className="form-group">
+    <label>Diary Number</label>
+    <input
+      type="text"
+      value={diaryNumber}
+      onChange={e => setDiaryNumber(e.target.value)}
+      placeholder="Enter diary number"
+      required
+    />
+  </div>
 
-                <button type="submit">Add Previous Bill</button>
-            </form>
+  <div className="form-group">
+    <label>Balance Amount</label>
+    <input
+      type="number"
+      value={balance}
+      onChange={e => setBalance(e.target.value)}
+      placeholder="Enter balance amount"
+      step="0.01"
+      required
+    />
+  </div>
+
+  <button type="submit" className="submit-btn">Add Previous Bill</button>
+</form>
+
         </div>
     );
 }
