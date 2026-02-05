@@ -21,7 +21,7 @@ const SERVE_FRONTEND = process.env.SERVE_FRONTEND === 'true';
 const allowedOrigins = [
   'http://faridagri.devzytic.com',
   'https://faridagri.devzytic.com',
-  'https://api.devzytic.com',
+  'http://api.devzytic.com',
   'http://localhost:3000', // for local development
   'http://localhost:5002'  // for local testing
 ];
