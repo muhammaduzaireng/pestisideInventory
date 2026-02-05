@@ -94,8 +94,8 @@ if (SERVE_FRONTEND) {
   const buildPath = path.join(__dirname, '..', 'build');
   app.use(express.static(buildPath));
   
-  // Serve React app for all non-API routes
-  app.get('*', (req, res) => {
+  // Serve React app for all non-API routes (Express 5 compatible catch-all)
+  app.use((req, res, next) => {
     // Don't serve React app for API routes
     if (req.path.startsWith('/api')) {
       return res.status(404).json({ 
@@ -104,6 +104,7 @@ if (SERVE_FRONTEND) {
         method: req.method
       });
     }
+    // Serve index.html for all other routes (SPA routing)
     res.sendFile(path.join(buildPath, 'index.html'));
   });
 } else {
