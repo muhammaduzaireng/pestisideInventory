@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import './VendorAccountsPage.css';
 
 // --- API Configuration ---
-const API_BASE_URL = 'https://api.devzytic.com/api';
+const API_BASE_URL = 'http://api.devzytic.com/api';
 
 // --- COMPONENTS ---
 

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import './StockPage.css';
 
 // --- API CONFIGURATION ---
-const API_BASE_URL = 'https://api.devzytic.com/api';
+const API_BASE_URL = 'http://api.devzytic.com/api';
 const LOW_STOCK_THRESHOLD = 10;
 
 function StockPage() {

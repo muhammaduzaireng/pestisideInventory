@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const customerRoutes = require('./routes/customers');
 const vendorRoutes = require('./routes/vendors');
 const purchaseBillRoutes = require('./routes/purchase_bills');
@@ -10,6 +11,7 @@ const previousBillsRoutes = require('./routes/previousBills');
 
 const app = express();
 const PORT = process.env.PORT || 5002;
+const SERVE_FRONTEND = process.env.SERVE_FRONTEND === 'true';
 
 // ------------------------------------------------------------------
 // ⭐ UPDATED CORS CONFIGURATION ⭐
@@ -86,16 +88,35 @@ app.get('/api', (req, res) => {
   });
 });
 
-// 404 Handler
-app.use((req, res, next) => {
-  res.status(404).json({ 
-    error: "Route Not Found",
-    path: req.path,
-    method: req.method
+// Serve static files from React app build directory (if SERVE_FRONTEND is enabled)
+if (SERVE_FRONTEND) {
+  const buildPath = path.join(__dirname, '..', 'build');
+  app.use(express.static(buildPath));
+  
+  // Serve React app for all non-API routes
+  app.get('*', (req, res) => {
+    // Don't serve React app for API routes
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ 
+        error: "Route Not Found",
+        path: req.path,
+        method: req.method
+      });
+    }
+    res.sendFile(path.join(buildPath, 'index.html'));
   });
-});
+} else {
+  // 404 Handler for API-only mode
+  app.use((req, res, next) => {
+    res.status(404).json({ 
+      error: "Route Not Found",
+      path: req.path,
+      method: req.method
+    });
+  });
+}
 
-// Error handler
+// Error handler (must be last)
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
   res.status(500).json({ 
