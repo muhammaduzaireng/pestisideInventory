@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'sales-app-backend',
+      name: 'sales-app',
       script: './sales-app-backend/server.js',
       cwd: './',
       instances: 1,
@@ -9,34 +9,15 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 5002,
-        SERVE_FRONTEND: 'false' // Set to 'true' if you want backend to serve frontend
+        SERVE_FRONTEND: 'true' // Backend will serve the frontend build
       },
-      error_file: './logs/backend-error.log',
-      out_file: './logs/backend-out.log',
-      log_file: './logs/backend-combined.log',
+      error_file: './logs/app-error.log',
+      out_file: './logs/app-out.log',
+      log_file: './logs/app-combined.log',
       time: true,
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
-      merge_logs: true
-    },
-    {
-      name: 'sales-app-frontend',
-      script: 'npx',
-      args: 'serve -s build -l 3000',
-      cwd: './',
-      instances: 1,
-      exec_mode: 'fork',
-      env: {
-        NODE_ENV: 'production'
-      },
-      error_file: './logs/frontend-error.log',
-      out_file: './logs/frontend-out.log',
-      log_file: './logs/frontend-combined.log',
-      time: true,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '500M',
       merge_logs: true
     }
   ]

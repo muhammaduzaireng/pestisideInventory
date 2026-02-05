@@ -19,6 +19,7 @@ const SERVE_FRONTEND = process.env.SERVE_FRONTEND === 'true';
 
 // Allow multiple origins including your frontend domain
 const allowedOrigins = [
+  'http://faridagri.devzytic.com',
   'https://faridagri.devzytic.com',
   'https://api.devzytic.com',
   'http://localhost:3000', // for local development
@@ -129,6 +130,6 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/`);
   console.log(`📍 API Base: http://localhost:${PORT}/api`);
-  console.log(`📍 Frontend: https://faridagri.devzytic.com`);
-  console.log(`📍 API Domain: https://api.devzytic.com`);
+  console.log(`📍 Frontend: http://faridagri.devzytic.com`);
+  console.log(`📍 Serving frontend: ${SERVE_FRONTEND ? 'YES' : 'NO'}`);
 });

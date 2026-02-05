@@ -14,7 +14,13 @@ const getApiBaseUrl = () => {
     return process.env.REACT_APP_API_URL;
   }
   
-  // Default to production API
+  // If served from faridagri.devzytic.com (http or https), use relative URL (same domain)
+  const hostname = window.location.hostname;
+  if (hostname === 'faridagri.devzytic.com' || hostname.includes('faridagri.devzytic.com')) {
+    return '/api';
+  }
+  
+  // Default to production API (for separate API domain)
   return 'https://api.devzytic.com/api';
 };
 
