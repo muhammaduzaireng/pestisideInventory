@@ -63,16 +63,7 @@ app.use('/api/sale_bills', saleBillRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/customers', previousBillsRoutes);
 
-// Health check - accessible at https://api.devzytic.com/
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Sales Application API is running.',
-    timestamp: new Date().toISOString(),
-    database: 'MySQL Hostinger'
-  });
-});
-
-// API root endpoint - accessible at https://api.devzytic.com/api
+// API root endpoint - accessible at /api
 app.get('/api', (req, res) => {
   res.json({ 
     message: 'Sales API Root',
@@ -87,12 +78,22 @@ app.get('/api', (req, res) => {
   });
 });
 
+// Health check endpoint - accessible at /api/health
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    message: 'Sales Application API is running.',
+    timestamp: new Date().toISOString(),
+    database: 'MySQL Hostinger'
+  });
+});
+
 // Serve static files from React app build directory (if SERVE_FRONTEND is enabled)
 if (SERVE_FRONTEND) {
   const buildPath = path.join(__dirname, '..', 'build');
   app.use(express.static(buildPath));
   
   // Serve React app for all non-API routes (Express 5 compatible catch-all)
+  // This must be AFTER API routes so API routes take precedence
   app.use((req, res, next) => {
     // Don't serve React app for API routes
     if (req.path.startsWith('/api')) {
@@ -106,6 +107,14 @@ if (SERVE_FRONTEND) {
     res.sendFile(path.join(buildPath, 'index.html'));
   });
 } else {
+  // Health check - only when not serving frontend
+  app.get('/', (req, res) => {
+    res.json({ 
+      message: 'Sales Application API is running.',
+      timestamp: new Date().toISOString(),
+      database: 'MySQL Hostinger'
+    });
+  });
   // 404 Handler for API-only mode
   app.use((req, res, next) => {
     res.status(404).json({ 
