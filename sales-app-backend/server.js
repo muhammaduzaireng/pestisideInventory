@@ -11,7 +11,8 @@ const previousBillsRoutes = require('./routes/previousBills');
 
 const app = express();
 const PORT = process.env.PORT || 5002;
-const SERVE_FRONTEND = process.env.SERVE_FRONTEND === 'true';
+// Always serve frontend - no need for SERVE_FRONTEND env variable
+const SERVE_FRONTEND = true;
 
 // ------------------------------------------------------------------
 // ⭐ UPDATED CORS CONFIGURATION ⭐
@@ -43,6 +44,13 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Force HTTP protocol in responses (prevent HTTPS redirects)
+app.use((req, res, next) => {
+  // Set header to indicate HTTP only
+  res.setHeader('X-Forwarded-Proto', 'http');
+  next();
+});
 
 // Add request logging to debug
 app.use((req, res, next) => {
@@ -87,43 +95,50 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve static files from React app build directory (if SERVE_FRONTEND is enabled)
-if (SERVE_FRONTEND) {
-  const buildPath = path.join(__dirname, '..', 'build');
-  app.use(express.static(buildPath));
+// Serve static files from React app build directory
+const buildPath = path.join(__dirname, '..', 'build');
+
+// Serve static files (CSS, JS, images, etc.)
+app.use(express.static(buildPath, {
+  maxAge: '1d', // Cache static files for 1 day
+  etag: true
+}));
+
+// Serve React app for all non-API routes (SPA routing)
+// This must be AFTER API routes and static files so they take precedence
+app.get('*', (req, res, next) => {
+  // Skip if it's an API route
+  if (req.path.startsWith('/api')) {
+    return next(); // Let API 404 handler catch it
+  }
   
-  // Serve React app for all non-API routes (Express 5 compatible catch-all)
-  // This must be AFTER API routes so API routes take precedence
-  app.use((req, res, next) => {
-    // Don't serve React app for API routes
-    if (req.path.startsWith('/api')) {
-      return res.status(404).json({ 
-        error: "Route Not Found",
-        path: req.path,
-        method: req.method
-      });
+  // Skip if it's a static file request (should be handled by express.static)
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
+    return next();
+  }
+  
+  // Serve index.html for all React routes (dashboard/sale, etc.)
+  res.sendFile(path.join(buildPath, 'index.html'), (err) => {
+    if (err) {
+      console.error('Error serving index.html:', err);
+      res.status(500).send('Error loading application');
     }
-    // Serve index.html for all other routes (SPA routing)
-    res.sendFile(path.join(buildPath, 'index.html'));
   });
-} else {
-  // Health check - only when not serving frontend
-  app.get('/', (req, res) => {
-    res.json({ 
-      message: 'Sales Application API is running.',
-      timestamp: new Date().toISOString(),
-      database: 'MySQL Hostinger'
-    });
-  });
-  // 404 Handler for API-only mode
-  app.use((req, res, next) => {
+});
+
+// 404 Handler for API routes only
+app.use((req, res) => {
+  if (req.path.startsWith('/api')) {
     res.status(404).json({ 
       error: "Route Not Found",
       path: req.path,
       method: req.method
     });
-  });
-}
+  } else {
+    // This shouldn't happen, but just in case
+    res.status(404).send('Page not found');
+  }
+});
 
 // Error handler (must be last)
 app.use((err, req, res, next) => {
@@ -136,9 +151,10 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} (HTTP only)`);
-  console.log(`📍 Health check: http://localhost:${PORT}/`);
+  console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
   console.log(`📍 API Base: http://localhost:${PORT}/api`);
-  console.log(`📍 Frontend: http://faridagri.devzytic.com`);
-  console.log(`📍 Serving frontend: ${SERVE_FRONTEND ? 'YES' : 'NO'}`);
+  console.log(`📍 Frontend: http://localhost:${PORT}/`);
+  console.log(`📍 Domain: http://faridagri.devzytic.com`);
+  console.log(`📍 Serving frontend: YES (always enabled)`);
   console.log(`📍 Protocol: HTTP (no HTTPS)`);
 });
