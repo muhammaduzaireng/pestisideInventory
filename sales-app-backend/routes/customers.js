@@ -21,7 +21,17 @@ router.get('/', async (req, res) => {
         res.status(200).json(customers);
     } catch (err) {
         console.error('Error fetching customers:', err);
-        res.status(500).json({ error: 'Failed to fetch customers' });
+        console.error('Error details:', {
+            message: err.message,
+            code: err.code,
+            sqlState: err.sqlState,
+            sqlMessage: err.sqlMessage
+        });
+        res.status(500).json({ 
+            error: 'Failed to fetch customers',
+            message: err.message,
+            details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 

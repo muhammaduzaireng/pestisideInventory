@@ -1,6 +1,9 @@
 // sales-app-backend/db.js - MySQL Version
 const mysql = require('mysql2');
-require('dotenv').config();
+const path = require('path');
+
+// Load .env file from sales-app-backend directory
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Create MySQL connection pool
 const pool = mysql.createPool({
@@ -18,13 +21,17 @@ const pool = mysql.createPool({
 // Create promise wrapper for async/await
 const promisePool = pool.promise();
 
-// Test connection
+// Test connection and verify database is selected
 pool.getConnection((err, connection) => {
   if (err) {
     console.error('❌ Error connecting to MySQL database:', err.message);
+    console.error('   DB_HOST:', process.env.DB_HOST);
+    console.error('   DB_USER:', process.env.DB_USER);
+    console.error('   DB_DATABASE:', process.env.DB_DATABASE || 'NOT SET!');
     return;
   }
-  console.log('✅ Connected to Hostinger MySQL database');
+  console.log('✅ Connected to MySQL database');
+  console.log('   Database:', process.env.DB_DATABASE || 'NOT SET!');
   connection.release();
 });
 
