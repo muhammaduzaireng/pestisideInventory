@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import './PreviousBills.css';
 import AddCustomerPage from './AddCustomerPage';
 
-const API_BASE_URL = "http://api.devzytic.com/api";
+import { API_BASE_URL } from '../config/api';
 
 export default function PreviousBillsPage() {
     const [customers, setCustomers] = useState([]);

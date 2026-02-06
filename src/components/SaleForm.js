@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import './SaleForm.css';
-
-// --- API Configuration ---
-const API_BASE_URL = 'http://api.devzytic.com/api';
+import { API_BASE_URL } from '../config/api';
 
 // --- Constants ---
 const WALK_IN_CUSTOMER = {

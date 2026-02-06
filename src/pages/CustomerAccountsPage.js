@@ -3,7 +3,7 @@ import './CustomerAccountsPage.css';
 import AddCustomerPage from './AddCustomerPage';
 
 // --- API CONFIGURATION ---
-const API_BASE_URL = 'http://api.devzytic.com/api';
+import { API_BASE_URL } from '../config/api';
 
 // --- COMPONENTS ---
 

@@ -45,7 +45,8 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:5002',
       'http://faridagri.devzytic.com',
-      /\.devzytic\.com$/, // Allow all devzytic.com subdomains
+      'http://api.devzytic.com', // Allow API domain
+      /\.devzytic\.com$/, // Allow all devzytic.com subdomains (http and https)
     ];
     
     // Add your network IPs dynamically

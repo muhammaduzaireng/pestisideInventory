@@ -14,14 +14,24 @@ const getApiBaseUrl = () => {
     return process.env.REACT_APP_API_URL;
   }
   
-  // If served from faridagri.devzytic.com (http or https), use relative URL (same domain)
+  // Get current hostname and protocol
   const hostname = window.location.hostname;
+  const protocol = window.location.protocol; // 'http:' or 'https:'
+  
+  // If served from faridagri.devzytic.com, ALWAYS use relative URL (same domain)
+  // This prevents CORS issues and mixed content errors
   if (hostname === 'faridagri.devzytic.com' || hostname.includes('faridagri.devzytic.com')) {
+    // Use relative URL - will automatically use the same protocol and domain
     return '/api';
   }
   
-  // Default to production API (for separate API domain)
-  return 'https://api.devzytic.com/api';
+  // For localhost development
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:5002/api';
+  }
+  
+  // Default fallback - but this shouldn't be reached if on faridagri.devzytic.com
+  return '/api'; // Default to relative URL
 };
 
 export const API_BASE_URL = getApiBaseUrl();
