@@ -42,7 +42,7 @@ const corsOptions = {
     
     // List of allowed origins
     const allowedOrigins = [
-      'http://localhost:3001',
+      'http://localhost:3000',
       'http://localhost:5002',
       'http://faridagri.devzytic.com',
       /\.devzytic\.com$/, // Allow all devzytic.com subdomains
@@ -131,17 +131,33 @@ app.get('/api/network', (req, res) => {
   });
 });
 
-// Error handling
+// Serve React app (catch-all handler must be after API routes)
+// Use app.use() instead of app.get('*') for Express 5 compatibility
+app.use((req, res) => {
+  // Skip API routes - they should have been handled already
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({
+      error: 'Route Not Found',
+      path: req.path,
+      method: req.method
+    });
+  }
+  
+  // Skip static file requests
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|json)$/)) {
+    return res.status(404).send('File not found');
+  }
+  
+  // Serve index.html for all React routes
+  res.sendFile(path.join(__dirname, '../build', 'index.html'));
+});
+
+// Error handling (must be last)
 app.use((err, req, res, next) => {
   console.error('Server Error:', err);
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error'
   });
-});
-
-// Serve React app (catch-all handler must be after API routes)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../build', 'index.html'));
 });
 
 // Start server with ALL interfaces
