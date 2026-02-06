@@ -9,7 +9,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 5002,
-        SERVE_FRONTEND: 'true' // Backend will serve the frontend build
+        SERVE_FRONTEND: 'true'
       },
       error_file: './logs/app-error.log',
       out_file: './logs/app-out.log',

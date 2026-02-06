@@ -25,16 +25,17 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build:all": "npm run build && npm run deploy",
+    "deploy": "pm2 delete sales-app 2>/dev/null || true && pm2 start ecosystem.config.js && pm2 save",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop ecosystem.config.js",
     "pm2:restart": "pm2 restart ecosystem.config.js",
     "pm2:delete": "pm2 delete ecosystem.config.js",
-    "pm2:logs": "pm2 logs",
+    "pm2:logs": "pm2 logs sales-app",
     "pm2:status": "pm2 status",
-    "pm2:monit": "pm2 monit",
-    "prepm2:start": "npm run build"
+    "pm2:monit": "pm2 monit"
   },
   "eslintConfig": {
     "extends": [

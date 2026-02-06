@@ -17,11 +17,9 @@ const SERVE_FRONTEND = process.env.SERVE_FRONTEND === 'true';
 // ⭐ UPDATED CORS CONFIGURATION ⭐
 // ------------------------------------------------------------------
 
-// Allow multiple origins including your frontend domain
+// Allow multiple origins including your frontend domain (HTTP only)
 const allowedOrigins = [
   'http://faridagri.devzytic.com',
-  'https://faridagri.devzytic.com',
-  'http://api.devzytic.com',
   'http://localhost:3000', // for local development
   'http://localhost:5002'  // for local testing
 ];
@@ -128,9 +126,10 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT} (HTTP only)`);
   console.log(`📍 Health check: http://localhost:${PORT}/`);
   console.log(`📍 API Base: http://localhost:${PORT}/api`);
   console.log(`📍 Frontend: http://faridagri.devzytic.com`);
   console.log(`📍 Serving frontend: ${SERVE_FRONTEND ? 'YES' : 'NO'}`);
+  console.log(`📍 Protocol: HTTP (no HTTPS)`);
 });
