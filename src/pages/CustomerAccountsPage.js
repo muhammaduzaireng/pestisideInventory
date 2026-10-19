@@ -107,6 +107,65 @@ const CollectionModal = ({ order, sources, onCollect, onClose, customers }) => {
     );
 };
 
+/* --- EDIT CUSTOMER MODAL --- */
+const EditCustomerModal = ({ customer, onSave, onClose }) => {
+    const [name, setName] = useState(customer.name || '');
+    const [phone, setPhone] = useState(customer.phone || '');
+    const [address, setAddress] = useState(customer.address || '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!name.trim()) return;
+
+        setIsSaving(true);
+        await onSave({ ...customer, name: name.trim(), phone: phone.trim(), address: address.trim() });
+        setIsSaving(false);
+    };
+
+    return (
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="modal-content collection-modal" onClick={e => e.stopPropagation()}>
+                <h3>Edit Customer Details</h3>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label>Customer Name:</label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label>Phone Number:</label>
+                        <input
+                            type="text"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label>Address:</label>
+                        <input
+                            type="text"
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                        />
+                    </div>
+                    
+                    <div className="modal-actions">
+                        <button type="button" className="cancel-btn" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="submit-btn" disabled={isSaving || !name.trim()}>
+                            {isSaving ? 'Saving...' : 'Update Details'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 function CustomerAccountsPage() {
     const [customers, setCustomers] = useState([]);
     const [orders, setOrders] = useState([]);
@@ -114,6 +173,8 @@ function CustomerAccountsPage() {
     const [selectedCustomerId, setSelectedCustomerId] = useState(null);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [selectedOrderForCollection, setSelectedOrderForCollection] = useState(null);
+    const [editingCustomer, setEditingCustomer] = useState(null);
+    
     const [view, setView] = useState('list');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -187,10 +248,39 @@ function CustomerAccountsPage() {
         setView('list');
     }, [fetchData]);
 
+    // --- UPDATE CUSTOMER API CALL ---
+    const handleUpdateCustomer = async (updatedCustomer) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/customers/${updatedCustomer.customer_id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: updatedCustomer.name,
+                    phone: updatedCustomer.phone,
+                    address: updatedCustomer.address
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'Failed to update customer');
+            }
+
+            // Update UI state directly
+            setCustomers(prev => prev.map(c => 
+                c.customer_id === updatedCustomer.customer_id ? updatedCustomer : c
+            ));
+            setEditingCustomer(null);
+        } catch (err) {
+            console.error('Error updating customer:', err);
+            alert('Failed to update customer: ' + err.message);
+        }
+    };
+
     const handleCollectPayment = async (order, collectionAmount, collectionSource) => {
         const balance = parseFloat(order.balance);
         if (collectionAmount <= 0 || collectionAmount > balance) {
-            alert('Invalid collection amount. Must be positive and less than or equal to the balance.');
+            alert('Invalid collection amount.');
             return;
         }
 
@@ -219,7 +309,7 @@ function CustomerAccountsPage() {
         }
     };
 
-    // --- FILTERED CUSTOMERS ---
+    // --- FILTERED DATA MEMOS ---
     const filteredCustomers = useMemo(() => {
         const query = customerSearch.toLowerCase().trim();
         if (!query) return customers;
@@ -229,7 +319,6 @@ function CustomerAccountsPage() {
         );
     }, [customers, customerSearch]);
 
-    // --- FILTERED ORDERS BY DATE RANGE ---
     const dateFilteredOrders = useMemo(() => {
         return orders.filter(ord => {
             if (!ord.date) return true;
@@ -240,7 +329,6 @@ function CustomerAccountsPage() {
         });
     }, [orders, startDate, endDate]);
 
-    // --- GLOBAL OVERALL FINANCIAL SUMMARY ---
     const overallFinancialSummary = useMemo(() => {
         const totalSales = dateFilteredOrders.reduce((sum, ord) => sum + ord.total_amount, 0);
         const totalReceived = dateFilteredOrders.reduce((sum, ord) => sum + ord.paid_amount, 0);
@@ -249,7 +337,6 @@ function CustomerAccountsPage() {
         return { totalSales, totalReceived, totalOutstanding };
     }, [dateFilteredOrders]);
 
-    // --- SELECTED CUSTOMER MEMOS ---
     const selectedCustomer = useMemo(() => {
         return customers.find(c => c.customer_id === selectedCustomerId);
     }, [customers, selectedCustomerId]);
@@ -290,19 +377,19 @@ function CustomerAccountsPage() {
         <div className="customer-accounts-page">
             <h1>Customer Accounts Overview (Receivables)</h1>
 
-            {/* Overall Summary & Date Range Filter Toolbar */}
-            <div className="filter-summary-toolbar" style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ marginRight: '8px', fontWeight: 'bold' }}>From Date:</label>
+            {/* Filter Toolbar */}
+            <div className="filter-summary-toolbar">
+                <div className="date-filter-group">
+                    <div className="form-group">
+                        <label>From Date:</label>
                         <input
                             type="date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
                         />
                     </div>
-                    <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ marginRight: '8px', fontWeight: 'bold' }}>To Date:</label>
+                    <div className="form-group">
+                        <label>To Date:</label>
                         <input
                             type="date"
                             value={endDate}
@@ -310,11 +397,8 @@ function CustomerAccountsPage() {
                         />
                     </div>
                     {(startDate || endDate) && (
-                        <button 
-                            style={{ padding: '6px 12px', cursor: 'pointer' }}
-                            onClick={() => { setStartDate(''); setEndDate(''); }}
-                        >
-                            Clear Date Filter
+                        <button className="clear-btn" onClick={() => { setStartDate(''); setEndDate(''); }}>
+                            Clear Filter
                         </button>
                     )}
                 </div>
@@ -336,20 +420,19 @@ function CustomerAccountsPage() {
             </div>
 
             <div className="account-master-detail">
-                {/* Left Side: Customer List with Search Input */}
+                {/* Left Side: Customer List */}
                 <div className="vendor-list-master">
                     <div className="list-header">
                         <h2>Customers ({filteredCustomers.length})</h2>
                         <button className="add-btn" onClick={() => setView('add')}>+ Add New</button>
                     </div>
 
-                    <div style={{ padding: '10px 0' }}>
+                    <div className="customer-search-box">
                         <input
                             type="text"
                             placeholder="Search by name or phone..."
                             value={customerSearch}
                             onChange={(e) => setCustomerSearch(e.target.value)}
-                            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
                         />
                     </div>
                     
@@ -375,14 +458,23 @@ function CustomerAccountsPage() {
                     </ul>
                 </div>
 
-                {/* Right Side: Account Details for Selected Customer */}
+                {/* Right Side: Details for Selected Customer */}
                 <div className="vendor-account-detail">
                     {selectedCustomer ? (
                         <>
-                            <h2>Sales Details for {selectedCustomer.name}</h2>
-                            <p>Phone: <strong>{selectedCustomer.phone}</strong> | Address: <strong>{selectedCustomer.address}</strong></p>
+                            <div className="customer-detail-header">
+                                <div>
+                                    <h2>Sales Details for {selectedCustomer.name}</h2>
+                                    <p>Phone: <strong>{selectedCustomer.phone || 'N/A'}</strong> | Address: <strong>{selectedCustomer.address || 'N/A'}</strong></p>
+                                </div>
+                                <button 
+                                    className="edit-customer-btn" 
+                                    onClick={() => setEditingCustomer(selectedCustomer)}
+                                >
+                                    ✏️ Edit Customer
+                                </button>
+                            </div>
                             
-                            {/* Selected Customer Financial Summary */}
                             <div className="summary-cards">
                                 <div className="card total">
                                     <h3>Customer Total Sales</h3>
@@ -398,7 +490,6 @@ function CustomerAccountsPage() {
                                 </div>
                             </div>
 
-                            {/* Order History Table */}
                             <h3>Order History ({customerOrders.length})</h3>
                             <table className="invoices-history-table">
                                 <thead>
@@ -443,18 +534,14 @@ function CustomerAccountsPage() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="7" className="empty-row-msg">No sales orders found for this customer in selected date range.</td></tr>
+                                        <tr><td colSpan="7" className="empty-row-msg">No sales orders found for this customer.</td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </>
                     ) : (
                         <div className="empty-detail-msg">
-                            {customers.length > 0 ? (
-                                <p>Select a customer from the list to view account details.</p>
-                            ) : (
-                                <p>No customers exist. Click '+ Add New' to create one.</p>
-                            )}
+                            <p>Select a customer to view account details.</p>
                         </div>
                     )}
                 </div>
@@ -477,6 +564,14 @@ function CustomerAccountsPage() {
                     onCollect={handleCollectPayment}
                     onClose={() => setSelectedOrderForCollection(null)}
                     customers={customers}
+                />
+            )}
+
+            {editingCustomer && (
+                <EditCustomerModal
+                    customer={editingCustomer}
+                    onSave={handleUpdateCustomer}
+                    onClose={() => setEditingCustomer(null)}
                 />
             )}
         </div>
