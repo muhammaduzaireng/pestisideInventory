@@ -118,6 +118,11 @@ function CustomerAccountsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // Filter states
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
     // --- FETCH DATA ---
     const fetchData = useCallback(async (selectNewId = null) => {
         setIsLoading(true);
@@ -142,7 +147,7 @@ function CustomerAccountsPage() {
                 id: order.bill_id,
                 bill_number: order.bill_number,
                 customer_id: order.customer_id,
-                customerId: order.customer_id, // For compatibility with existing logic
+                customerId: order.customer_id,
                 date: order.date,
                 total_amount: parseFloat(order.total_amount),
                 paid_amount: parseFloat(order.paid_amount),
@@ -167,24 +172,21 @@ function CustomerAccountsPage() {
             setSelectedCustomerId(newIdToSelect);
         } catch (err) {
             console.error('Failed to fetch data:', err);
-            setError('Could not connect to the backend server or API failed. Ensure Node.js server is running.');
+            setError('Could not connect to the backend server or API failed.');
         } finally {
             setIsLoading(false);
         }
     }, [selectedCustomerId]);
 
-    // Initial fetch on component mount
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
-    // --- HANDLER FOR NEW CUSTOMER CREATION ---
     const handleCustomerSaved = useCallback((newCustomer) => {
         fetchData(newCustomer.customer_id);
         setView('list');
     }, [fetchData]);
 
-    // --- HANDLER FOR PAYMENT COLLECTION ---
     const handleCollectPayment = async (order, collectionAmount, collectionSource) => {
         const balance = parseFloat(order.balance);
         if (collectionAmount <= 0 || collectionAmount > balance) {
@@ -209,7 +211,6 @@ function CustomerAccountsPage() {
                 throw new Error(errorData.error || 'Failed to add payment');
             }
 
-            // Refetch orders to update UI
             await fetchData();
             setSelectedOrderForCollection(null);
         } catch (err) {
@@ -218,18 +219,48 @@ function CustomerAccountsPage() {
         }
     };
 
-    // --- MEMOIZED VALUES ---
+    // --- FILTERED CUSTOMERS ---
+    const filteredCustomers = useMemo(() => {
+        const query = customerSearch.toLowerCase().trim();
+        if (!query) return customers;
+        return customers.filter(c => 
+            c.name?.toLowerCase().includes(query) || 
+            c.phone?.toString().includes(query)
+        );
+    }, [customers, customerSearch]);
+
+    // --- FILTERED ORDERS BY DATE RANGE ---
+    const dateFilteredOrders = useMemo(() => {
+        return orders.filter(ord => {
+            if (!ord.date) return true;
+            const orderDate = new Date(ord.date);
+            if (startDate && orderDate < new Date(startDate)) return false;
+            if (endDate && orderDate > new Date(endDate)) return false;
+            return true;
+        });
+    }, [orders, startDate, endDate]);
+
+    // --- GLOBAL OVERALL FINANCIAL SUMMARY ---
+    const overallFinancialSummary = useMemo(() => {
+        const totalSales = dateFilteredOrders.reduce((sum, ord) => sum + ord.total_amount, 0);
+        const totalReceived = dateFilteredOrders.reduce((sum, ord) => sum + ord.paid_amount, 0);
+        const totalOutstanding = dateFilteredOrders.reduce((sum, ord) => sum + ord.balance, 0);
+
+        return { totalSales, totalReceived, totalOutstanding };
+    }, [dateFilteredOrders]);
+
+    // --- SELECTED CUSTOMER MEMOS ---
     const selectedCustomer = useMemo(() => {
         return customers.find(c => c.customer_id === selectedCustomerId);
     }, [customers, selectedCustomerId]);
 
     const customerOrders = useMemo(() => {
-        return orders
+        return dateFilteredOrders
             .filter(ord => ord.customer_id === selectedCustomerId)
             .sort((a, b) => new Date(b.date) - new Date(a.date));
-    }, [orders, selectedCustomerId]);
+    }, [dateFilteredOrders, selectedCustomerId]);
 
-    const financialSummary = useMemo(() => {
+    const customerFinancialSummary = useMemo(() => {
         const totalSales = customerOrders.reduce((sum, ord) => sum + ord.total_amount, 0);
         const totalReceived = customerOrders.reduce((sum, ord) => sum + ord.paid_amount, 0);
         const totalOutstanding = customerOrders.reduce((sum, ord) => sum + ord.balance, 0);
@@ -248,7 +279,7 @@ function CustomerAccountsPage() {
     }
 
     if (isLoading && customers.length === 0 && orders.length === 0) {
-        return <div className="customer-accounts-page"><h1>Loading Customers...</h1></div>;
+        return <div className="customer-accounts-page"><h1>Loading Accounts...</h1></div>;
     }
 
     if (error) {
@@ -259,17 +290,72 @@ function CustomerAccountsPage() {
         <div className="customer-accounts-page">
             <h1>Customer Accounts Overview (Receivables)</h1>
 
+            {/* Overall Summary & Date Range Filter Toolbar */}
+            <div className="filter-summary-toolbar" style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ marginRight: '8px', fontWeight: 'bold' }}>From Date:</label>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                        />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ marginRight: '8px', fontWeight: 'bold' }}>To Date:</label>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                        />
+                    </div>
+                    {(startDate || endDate) && (
+                        <button 
+                            style={{ padding: '6px 12px', cursor: 'pointer' }}
+                            onClick={() => { setStartDate(''); setEndDate(''); }}
+                        >
+                            Clear Date Filter
+                        </button>
+                    )}
+                </div>
+
+                <div className="summary-cards">
+                    <div className="card total">
+                        <h3>Overall Total Sales</h3>
+                        <p>PKR {overallFinancialSummary.totalSales.toLocaleString()}</p>
+                    </div>
+                    <div className="card paid">
+                        <h3>Overall Total Received</h3>
+                        <p>PKR {overallFinancialSummary.totalReceived.toLocaleString()}</p>
+                    </div>
+                    <div className="card credit">
+                        <h3>Overall Outstanding</h3>
+                        <p>PKR {overallFinancialSummary.totalOutstanding.toLocaleString()}</p>
+                    </div>
+                </div>
+            </div>
+
             <div className="account-master-detail">
-                {/* Left Side: Customer List */}
+                {/* Left Side: Customer List with Search Input */}
                 <div className="vendor-list-master">
                     <div className="list-header">
-                        <h2>Customers ({customers.length})</h2>
+                        <h2>Customers ({filteredCustomers.length})</h2>
                         <button className="add-btn" onClick={() => setView('add')}>+ Add New</button>
+                    </div>
+
+                    <div style={{ padding: '10px 0' }}>
+                        <input
+                            type="text"
+                            placeholder="Search by name or phone..."
+                            value={customerSearch}
+                            onChange={(e) => setCustomerSearch(e.target.value)}
+                            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+                        />
                     </div>
                     
                     <ul className="vendor-selector-list">
-                        {customers.length > 0 ? (
-                            customers.map(customer => (
+                        {filteredCustomers.length > 0 ? (
+                            filteredCustomers.map(customer => (
                                 <li
                                     key={customer.customer_id}
                                     className={customer.customer_id === selectedCustomerId ? 'active' : ''}
@@ -284,31 +370,31 @@ function CustomerAccountsPage() {
                                 </li>
                             ))
                         ) : (
-                            <li className="empty-row-msg">No customers found. Click 'Add New'.</li>
+                            <li className="empty-row-msg">No matching customers found.</li>
                         )}
                     </ul>
                 </div>
 
-                {/* Right Side: Account Details */}
+                {/* Right Side: Account Details for Selected Customer */}
                 <div className="vendor-account-detail">
                     {selectedCustomer ? (
                         <>
                             <h2>Sales Details for {selectedCustomer.name}</h2>
                             <p>Phone: <strong>{selectedCustomer.phone}</strong> | Address: <strong>{selectedCustomer.address}</strong></p>
                             
-                            {/* Financial Summary Box */}
+                            {/* Selected Customer Financial Summary */}
                             <div className="summary-cards">
                                 <div className="card total">
-                                    <h3>Total Sales</h3>
-                                    <p>PKR {financialSummary.totalSales.toLocaleString()}</p>
+                                    <h3>Customer Total Sales</h3>
+                                    <p>PKR {customerFinancialSummary.totalSales.toLocaleString()}</p>
                                 </div>
                                 <div className="card paid">
-                                    <h3>Total Received</h3>
-                                    <p>PKR {financialSummary.totalReceived.toLocaleString()}</p>
+                                    <h3>Customer Total Received</h3>
+                                    <p>PKR {customerFinancialSummary.totalReceived.toLocaleString()}</p>
                                 </div>
                                 <div className="card credit">
-                                    <h3>Total Outstanding</h3>
-                                    <p>PKR {financialSummary.totalOutstanding.toLocaleString()}</p>
+                                    <h3>Customer Outstanding</h3>
+                                    <p>PKR {customerFinancialSummary.totalOutstanding.toLocaleString()}</p>
                                 </div>
                             </div>
 
@@ -357,7 +443,7 @@ function CustomerAccountsPage() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="7" className="empty-row-msg">No sales orders found for this customer.</td></tr>
+                                        <tr><td colSpan="7" className="empty-row-msg">No sales orders found for this customer in selected date range.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -365,7 +451,7 @@ function CustomerAccountsPage() {
                     ) : (
                         <div className="empty-detail-msg">
                             {customers.length > 0 ? (
-                                <p>Select a customer to view account details.</p>
+                                <p>Select a customer from the list to view account details.</p>
                             ) : (
                                 <p>No customers exist. Click '+ Add New' to create one.</p>
                             )}
@@ -374,7 +460,7 @@ function CustomerAccountsPage() {
                 </div>
             </div>
             
-            {/* Order Detail Modal */}
+            {/* Modals */}
             {selectedOrder && (
                 <div className="modal-backdrop" onClick={() => setSelectedOrder(null)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -384,7 +470,6 @@ function CustomerAccountsPage() {
                 </div>
             )}
             
-            {/* Collection Payment Modal */}
             {selectedOrderForCollection && (
                 <CollectionModal
                     order={selectedOrderForCollection}
