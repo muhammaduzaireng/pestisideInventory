@@ -108,18 +108,31 @@ const CollectionModal = ({ order, sources, onCollect, onClose, customers }) => {
 };
 
 /* --- EDIT CUSTOMER MODAL --- */
+/* --- EDIT CUSTOMER MODAL --- */
 const EditCustomerModal = ({ customer, onSave, onClose }) => {
     const [name, setName] = useState(customer.name || '');
     const [phone, setPhone] = useState(customer.phone || '');
     const [address, setAddress] = useState(customer.address || '');
     const [isSaving, setIsSaving] = useState(false);
+    const [validationError, setValidationError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!name.trim()) return;
 
+        // Ensure none of the fields are blank
+        if (!name.trim() || !phone.trim() || !address.trim()) {
+            setValidationError('Name, Phone, and Address are all required.');
+            return;
+        }
+
+        setValidationError('');
         setIsSaving(true);
-        await onSave({ ...customer, name: name.trim(), phone: phone.trim(), address: address.trim() });
+        await onSave({ 
+            ...customer, 
+            name: name.trim(), 
+            phone: phone.trim(), 
+            address: address.trim() 
+        });
         setIsSaving(false);
     };
 
@@ -127,9 +140,16 @@ const EditCustomerModal = ({ customer, onSave, onClose }) => {
         <div className="modal-backdrop" onClick={onClose}>
             <div className="modal-content collection-modal" onClick={e => e.stopPropagation()}>
                 <h3>Edit Customer Details</h3>
+                
+                {validationError && (
+                    <p style={{ color: '#c62828', backgroundColor: '#fde0e0', padding: '8px', borderRadius: '4px', fontSize: '0.85rem' }}>
+                        {validationError}
+                    </p>
+                )}
+
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>Customer Name:</label>
+                        <label>Customer Name *</label>
                         <input
                             type="text"
                             value={name}
@@ -138,25 +158,31 @@ const EditCustomerModal = ({ customer, onSave, onClose }) => {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Phone Number:</label>
+                        <label>Phone Number *</label>
                         <input
                             type="text"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
+                            required
                         />
                     </div>
                     <div className="form-group">
-                        <label>Address:</label>
+                        <label>Address *</label>
                         <input
                             type="text"
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
+                            required
                         />
                     </div>
                     
                     <div className="modal-actions">
                         <button type="button" className="cancel-btn" onClick={onClose}>Cancel</button>
-                        <button type="submit" className="submit-btn" disabled={isSaving || !name.trim()}>
+                        <button 
+                            type="submit" 
+                            className="submit-btn" 
+                            disabled={isSaving || !name.trim() || !phone.trim() || !address.trim()}
+                        >
                             {isSaving ? 'Saving...' : 'Update Details'}
                         </button>
                     </div>
