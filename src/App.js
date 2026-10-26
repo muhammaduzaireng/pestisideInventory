@@ -1,16 +1,31 @@
 // src/App.js
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import DashboardLayout from './components/DashboardLayout';
 
-// Mock authentication state (for now, just a boolean)
-const isAuthenticated = true; // Set this to false to see the login page first!
-
 function App() {
-  // In a real app, this state would be managed by Redux/Context and updated on successful login
-  const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated);
+  // Read initial login state from localStorage (Defaults to FALSE)
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    return savedUser && token ? JSON.parse(savedUser) : null;
+  });
+
+  const isLoggedIn = !!user;
+
+  // Handler for successful login/signup
+  const handleLogin = (userData) => {
+    setUser(userData);
+  };
+
+  // Handler for logging out
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
 
   return (
     <Router>
@@ -18,18 +33,30 @@ function App() {
         {/* Route for the Login Page */}
         <Route 
           path="/login" 
-          element={<LoginPage onLogin={() => setIsLoggedIn(true)} />} 
+          element={
+            isLoggedIn ? (
+              <Navigate to="/dashboard/sale" replace />
+            ) : (
+              <LoginPage onLogin={handleLogin} />
+            )
+          } 
         />
         
         {/* Protected Route: Navigate to Dashboard if logged in, otherwise to Login */}
         <Route 
-          path="/dashboard/*" // Use /* to match nested routes within the dashboard
-          element={isLoggedIn ? <DashboardLayout onLogout={() => setIsLoggedIn(false)} /> : <Navigate to="/login" replace />} 
+          path="/dashboard/*" 
+          element={
+            isLoggedIn ? (
+              <DashboardLayout user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          } 
         />
 
-        {/* Default Route: Redirect to /dashboard if logged in, or /login if not */}
+        {/* Default Route: Redirects to /login first if not authenticated */}
         <Route 
-          path="/" 
+          path="*" 
           element={<Navigate to={isLoggedIn ? "/dashboard/sale" : "/login"} replace />} 
         />
       </Routes>
