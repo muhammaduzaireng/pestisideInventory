@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-// Import your database connection pool (adjust path if needed)
-const db = require('../config/db'); 
+const db = require('../db'); 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_fallback_secret_key_123';
 
@@ -20,12 +19,15 @@ router.post('/register', async (req, res) => {
 
   try {
     // Check if user already exists
-    const [existing] = await db.query(
+    const result = await db.query(
       'SELECT id FROM users WHERE username = ? OR email = ?',
       [username, email]
     );
 
-    if (existing.length > 0) {
+    // Normalize output whether db returns [rows] or directly rows
+    const existing = Array.isArray(result[0]) ? result[0] : result;
+
+    if (existing && existing.length > 0) {
       return res.status(400).json({ error: 'Username or Email already exists.' });
     }
 
@@ -35,14 +37,16 @@ router.post('/register', async (req, res) => {
 
     // Insert user into DB
     const userRole = role || 'staff';
-    const [result] = await db.query(
+    const insertResult = await db.query(
       'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
       [username, email, hashedPassword, userRole]
     );
 
+    const insertData = Array.isArray(insertResult[0]) ? insertResult[0] : insertResult;
+
     res.status(201).json({
       message: 'User registered successfully',
-      userId: result.insertId,
+      userId: insertData.insertId,
       user: { username, email, role: userRole }
     });
   } catch (err) {
@@ -56,26 +60,28 @@ router.post('/register', async (req, res) => {
 // POST /api/users/login
 // ==========================================
 router.post('/login', async (req, res) => {
-  const { username, password } = req.body; // 'username' field can accept username or email
+  const { username, password } = req.body; // accepts username or email
 
   if (!username || !password) {
     return res.status(400).json({ error: 'Username/Email and password are required.' });
   }
 
   try {
-    // Find user by username or email
-    const [rows] = await db.query(
+    const result = await db.query(
       'SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1',
       [username, username]
     );
 
-    if (rows.length === 0) {
+    // Normalize output whether db returns [rows] or directly rows
+    const rows = Array.isArray(result[0]) ? result[0] : result;
+
+    if (!rows || rows.length === 0) {
       return res.status(401).json({ error: 'Invalid username or password.' });
     }
 
     const user = rows[0];
 
-    // Check password match
+    // Verify password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid username or password.' });
@@ -105,14 +111,13 @@ router.post('/login', async (req, res) => {
 });
 
 // ==========================================
-// 3. GET ALL USERS (Optional - Admin view)
+// 3. GET ALL USERS (Admin / Debug)
 // GET /api/users
 // ==========================================
 router.get('/', async (req, res) => {
   try {
-    const [users] = await db.query(
-      'SELECT id, username, email, role, created_at FROM users'
-    );
+    const result = await db.query('SELECT id, username, email, role, created_at FROM users');
+    const users = Array.isArray(result[0]) ? result[0] : result;
     res.json(users);
   } catch (err) {
     console.error('Error fetching users:', err);
