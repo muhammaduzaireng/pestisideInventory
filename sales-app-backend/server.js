@@ -10,6 +10,7 @@ const purchaseBillRoutes = require('./routes/purchase_bills');
 const saleBillRoutes = require('./routes/sale_bills');
 const productRoutes = require('./routes/products');
 const previousBillsRoutes = require('./routes/previousBills');
+const userRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -85,6 +86,7 @@ app.use('/api/purchase_bills', purchaseBillRoutes);
 app.use('/api/sale_bills', saleBillRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/customers', previousBillsRoutes);
+app.use('/api/users', userRoutes);
 
 // API root endpoint
 app.get('/api', (req, res) => {
@@ -158,6 +160,20 @@ app.use((err, req, res, next) => {
   console.error('Server Error:', err);
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error'
+  });
+});
+app.get('/api', (req, res) => {
+  res.json({ 
+    message: 'Sales API Root',
+    endpoints: {
+      users: '/api/users', // <-- Added
+      customers: '/api/customers',
+      vendors: '/api/vendors',
+      products: '/api/products',
+      purchase_bills: '/api/purchase_bills',
+      sale_bills: '/api/sale_bills'
+    },
+    timestamp: new Date().toISOString()
   });
 });
 
