@@ -49,7 +49,7 @@ function LoginPage({ onLogin }) {
       }
     }
 
-    const endpoint = isSignUp ? `${API_BASE_URL}/api/users/register` : `${API_BASE_URL}/api/users/login`;
+    const endpoint = isSignUp ? `${API_BASE_URL}/users/register` : `${API_BASE_URL}/users/login`;
     const payload = isSignUp
       ? { username: formData.username, email: formData.email, password: formData.password, role: formData.role }
       : { username: formData.username, password: formData.password };
