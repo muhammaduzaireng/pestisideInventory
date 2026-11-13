@@ -92,7 +92,7 @@ function LoginPage({ onLogin }) {
     <div className="login-container">
       <div className="login-box">
         <h2>Farid Zari Corporation</h2>
-        <p className="subtitle">{isSignUp ? 'Create a new account' : 'Log in to your account'}</p>
+        {/* <p className="subtitle">{isSignUp ? 'Create a new account' : 'Log in to your account'}</p> */}
 
         {error && <div className="alert alert-danger">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
@@ -160,7 +160,7 @@ function LoginPage({ onLogin }) {
           </button>
         </form>
 
-        <div className="toggle-mode">
+        {/* <div className="toggle-mode">
           {isSignUp ? (
             <p>
               Already have an account?{' '}
@@ -176,7 +176,7 @@ function LoginPage({ onLogin }) {
               </button>
             </p>
           )}
-        </div>
+        </div> */}
       </div>
     </div>
   );
