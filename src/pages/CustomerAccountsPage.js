@@ -5,46 +5,73 @@ import AddCustomerPage from './AddCustomerPage';
 // --- API CONFIGURATION ---
 import { API_BASE_URL } from '../config/api';
 
+// --- HELPER: CLEAN DATE FORMATTER ---
+const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    });
+};
+
 // --- COMPONENTS ---
 
 const OrderDetail = ({ order }) => (
     <div className="order-detail-box">
         <h4>Sales Order #{order.bill_number} Details</h4>
-        <p>Date: <strong>{order.date}</strong> | Status: <span className={`status-${order.status.toLowerCase()}`}>{order.status}</span></p>
-        
-        <table className="product-table">
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                {order.products.map((p, index) => (
-                    <tr key={index}>
-                        <td>{p.name}</td>
-                        <td>{p.qty} {p.unit}</td>
-                        <td>PKR {parseFloat(p.sale_price).toLocaleString()}</td>
-                        <td>PKR {(p.qty * p.sale_price).toLocaleString()}</td>
+        <p>
+            Bill Number: <strong>{order.bill_number || 'N/A'}</strong>
+            {order.diary_number && (
+                <> | Diary Number: <strong>{order.diary_number}</strong></>
+            )}
+        </p>
+        <p>
+            Date: <strong>{formatDate(order.date)}</strong> | Status:{' '}
+            <span className={`status-${order.status.toLowerCase()}`}>{order.status}</span>
+        </p>
+
+        {order.products && order.products.length > 0 ? (
+            <table className="product-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Total</th>
                     </tr>
-                ))}
-            </tbody>
-        </table>
-        
+                </thead>
+                <tbody>
+                    {order.products.map((p, index) => (
+                        <tr key={index}>
+                            <td>{p.name}</td>
+                            <td>{p.qty} {p.unit}</td>
+                            <td>PKR {parseFloat(p.sale_price).toLocaleString()}</td>
+                            <td>PKR {(p.qty * p.sale_price).toLocaleString()}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        ) : (
+            <p style={{ fontStyle: 'italic', color: '#666', margin: '10px 0' }}>
+                Previous / Manual Bill Entry
+            </p>
+        )}
+
         <div className="order-totals">
             <p>Total Sale: <strong>PKR {parseFloat(order.total_amount).toLocaleString()}</strong></p>
             <p className="paid">Amount Received: <strong>PKR {parseFloat(order.paid_amount).toLocaleString()}</strong></p>
             <p className="credit">Outstanding Balance: <strong>PKR {parseFloat(order.balance).toLocaleString()}</strong></p>
         </div>
-        
+
         {order.payments && order.payments.length > 0 && (
             <div className="collection-history">
                 <h5>Collection History</h5>
                 {order.payments.map((c, index) => (
                     <p key={index} className="collection-item">
-                        {c.date}: PKR {parseFloat(c.amount).toLocaleString()} ({c.source})
+                        {formatDate(c.date)}: PKR {parseFloat(c.amount).toLocaleString()} ({c.source})
                     </p>
                 ))}
             </div>
@@ -54,13 +81,18 @@ const OrderDetail = ({ order }) => (
 
 const CollectionModal = ({ order, sources, onCollect, onClose, customers }) => {
     const balance = parseFloat(order.balance);
-    const [collectionAmount, setCollectionAmount] = useState(balance);
+    const [collectionAmount, setCollectionAmount] = useState('');
     const [collectionSource, setCollectionSource] = useState(sources[0] || '');
-    
-    const customerName = customers.find(c => c.customer_id === order.customer_id)?.name || 'N/A';
+    const [isCollecting, setIsCollecting] = useState(false);
 
-    const handleCollect = () => {
-        onCollect(order, parseFloat(collectionAmount), collectionSource);
+    const customerName = customers.find(c => c.customer_id === order.customer_id)?.name || 'N/A';
+    const numericAmount = parseFloat(collectionAmount) || 0;
+
+    const handleCollect = async () => {
+        if (isCollecting) return;
+        setIsCollecting(true);
+        await onCollect(order, numericAmount, collectionSource);
+        setIsCollecting(false);
     };
 
     return (
@@ -69,7 +101,7 @@ const CollectionModal = ({ order, sources, onCollect, onClose, customers }) => {
                 <h3>Receive Payment for Order #{order.bill_number}</h3>
                 <p>Customer: <strong>{customerName}</strong></p>
                 <p>Outstanding Balance: <strong className="text-red">PKR {balance.toLocaleString()}</strong></p>
-                
+
                 <div className="form-group">
                     <label>Amount to Collect:</label>
                     <input
@@ -77,29 +109,32 @@ const CollectionModal = ({ order, sources, onCollect, onClose, customers }) => {
                         min="1"
                         max={balance}
                         step="0.01"
+                        placeholder="0"
                         value={collectionAmount}
-                        onChange={(e) => setCollectionAmount(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => setCollectionAmount(e.target.value)}
+                        disabled={isCollecting}
                     />
                 </div>
-                
+
                 <div className="form-group">
                     <label>Source of Collection:</label>
                     <select
                         value={collectionSource}
                         onChange={(e) => setCollectionSource(e.target.value)}
+                        disabled={isCollecting}
                     >
                         {sources.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 </div>
-                
+
                 <div className="modal-actions">
-                    <button className="cancel-btn" onClick={onClose}>Cancel</button>
+                    <button className="cancel-btn" onClick={onClose} disabled={isCollecting}>Cancel</button>
                     <button
                         className="submit-btn"
                         onClick={handleCollect}
-                        disabled={collectionAmount <= 0 || collectionAmount > balance}
+                        disabled={isCollecting || numericAmount <= 0 || numericAmount > balance}
                     >
-                        Confirm Collection (PKR {parseFloat(collectionAmount).toLocaleString()})
+                        {isCollecting ? 'Saving...' : `Confirm Collection (PKR ${numericAmount.toLocaleString()})`}
                     </button>
                 </div>
             </div>
@@ -107,7 +142,132 @@ const CollectionModal = ({ order, sources, onCollect, onClose, customers }) => {
     );
 };
 
-/* --- EDIT CUSTOMER MODAL --- */
+/* --- ADD BILL POPUP MODAL (Uses Selected Customer Automatically, Loading Lock) --- */
+const AddBillModal = ({ customer, onSuccess, onClose }) => {
+    const [previousBillNumber, setPreviousBillNumber] = useState('');
+    const [diaryNumber, setDiaryNumber] = useState('');
+    const [balance, setBalance] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (isSaving) return;
+
+        if (!previousBillNumber.trim() || !diaryNumber.trim() || !balance) {
+            setErrorMessage('All fields are required!');
+            return;
+        }
+
+        const numericBalance = parseFloat(balance);
+        if (isNaN(numericBalance) || numericBalance <= 0) {
+            setErrorMessage('Please enter a valid positive balance amount!');
+            return;
+        }
+
+        setErrorMessage('');
+        setIsSaving(true);
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/customers/${customer.customer_id}/previous-bill`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    previous_bill_number: previousBillNumber.trim(),
+                    previous_diary_number: diaryNumber.trim(),
+                    amount: numericBalance,
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to add bill');
+
+            onSuccess();
+        } catch (err) {
+            setErrorMessage(err.message || 'Failed to add bill');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="modal-backdrop" onClick={() => !isSaving && onClose()}>
+            <div className="modal-content collection-modal" onClick={e => e.stopPropagation()}>
+                <h3>Add Previous Bill</h3>
+                <p>
+                    Customer: <strong>{customer.name}</strong>
+                    {customer.phone ? ` (${customer.phone})` : ''}
+                </p>
+
+                {errorMessage && (
+                    <p style={{ color: '#c62828', backgroundColor: '#fde0e0', padding: '8px', borderRadius: '4px', fontSize: '0.85rem' }}>
+                        {errorMessage}
+                    </p>
+                )}
+
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label>Previous Bill Number *</label>
+                        <input
+                            type="text"
+                            value={previousBillNumber}
+                            onChange={(e) => setPreviousBillNumber(e.target.value)}
+                            placeholder="Enter previous bill number"
+                            disabled={isSaving}
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label>Diary Number *</label>
+                        <input
+                            type="text"
+                            value={diaryNumber}
+                            onChange={(e) => setDiaryNumber(e.target.value)}
+                            placeholder="Enter diary number"
+                            disabled={isSaving}
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label>Balance Amount (PKR) *</label>
+                        <input
+                            type="number"
+                            value={balance}
+                            onChange={(e) => setBalance(e.target.value)}
+                            placeholder="Enter balance amount"
+                            step="0.01"
+                            min="0.01"
+                            disabled={isSaving}
+                            required
+                        />
+                    </div>
+
+                    <div className="modal-actions">
+                        <button
+                            type="button"
+                            className="cancel-btn"
+                            onClick={onClose}
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="submit-btn"
+                            disabled={isSaving}
+                            style={{ opacity: isSaving ? 0.6 : 1, cursor: isSaving ? 'not-allowed' : 'pointer' }}
+                        >
+                            {isSaving ? 'Saving...' : 'Save Bill'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 /* --- EDIT CUSTOMER MODAL --- */
 const EditCustomerModal = ({ customer, onSave, onClose }) => {
     const [name, setName] = useState(customer.name || '');
@@ -118,8 +278,8 @@ const EditCustomerModal = ({ customer, onSave, onClose }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSaving) return;
 
-        // Ensure none of the fields are blank
         if (!name.trim() || !phone.trim() || !address.trim()) {
             setValidationError('Name, Phone, and Address are all required.');
             return;
@@ -127,11 +287,11 @@ const EditCustomerModal = ({ customer, onSave, onClose }) => {
 
         setValidationError('');
         setIsSaving(true);
-        await onSave({ 
-            ...customer, 
-            name: name.trim(), 
-            phone: phone.trim(), 
-            address: address.trim() 
+        await onSave({
+            ...customer,
+            name: name.trim(),
+            phone: phone.trim(),
+            address: address.trim()
         });
         setIsSaving(false);
     };
@@ -140,7 +300,7 @@ const EditCustomerModal = ({ customer, onSave, onClose }) => {
         <div className="modal-backdrop" onClick={onClose}>
             <div className="modal-content collection-modal" onClick={e => e.stopPropagation()}>
                 <h3>Edit Customer Details</h3>
-                
+
                 {validationError && (
                     <p style={{ color: '#c62828', backgroundColor: '#fde0e0', padding: '8px', borderRadius: '4px', fontSize: '0.85rem' }}>
                         {validationError}
@@ -154,6 +314,7 @@ const EditCustomerModal = ({ customer, onSave, onClose }) => {
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
+                            disabled={isSaving}
                             required
                         />
                     </div>
@@ -163,6 +324,7 @@ const EditCustomerModal = ({ customer, onSave, onClose }) => {
                             type="text"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
+                            disabled={isSaving}
                             required
                         />
                     </div>
@@ -172,15 +334,16 @@ const EditCustomerModal = ({ customer, onSave, onClose }) => {
                             type="text"
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
+                            disabled={isSaving}
                             required
                         />
                     </div>
-                    
+
                     <div className="modal-actions">
-                        <button type="button" className="cancel-btn" onClick={onClose}>Cancel</button>
-                        <button 
-                            type="submit" 
-                            className="submit-btn" 
+                        <button type="button" className="cancel-btn" onClick={onClose} disabled={isSaving}>Cancel</button>
+                        <button
+                            type="submit"
+                            className="submit-btn"
                             disabled={isSaving || !name.trim() || !phone.trim() || !address.trim()}
                         >
                             {isSaving ? 'Saving...' : 'Update Details'}
@@ -200,7 +363,8 @@ function CustomerAccountsPage() {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [selectedOrderForCollection, setSelectedOrderForCollection] = useState(null);
     const [editingCustomer, setEditingCustomer] = useState(null);
-    
+    const [isAddBillOpen, setIsAddBillOpen] = useState(false);
+
     const [view, setView] = useState('list');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -210,7 +374,7 @@ function CustomerAccountsPage() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
-    // --- FETCH DATA ---
+    // --- FETCH DATA (FIXED: Removed selectedCustomerId dependency so clicking a customer does not reload) ---
     const fetchData = useCallback(async (selectNewId = null) => {
         setIsLoading(true);
         setError(null);
@@ -230,40 +394,49 @@ function CustomerAccountsPage() {
             const sourcesData = await sourcesRes.json();
 
             setCustomers(customersData);
-            setOrders(ordersData.map(order => ({
-                id: order.bill_id,
-                bill_number: order.bill_number,
-                customer_id: order.customer_id,
-                customerId: order.customer_id,
-                date: order.date,
-                total_amount: parseFloat(order.total_amount),
-                paid_amount: parseFloat(order.paid_amount),
-                balance: parseFloat(order.balance),
-                status: order.balance > 0 ? 'Balance' : 'Paid',
-                products: order.products.map(p => ({
-                    name: p.name,
-                    qty: p.qty,
-                    sale_price: parseFloat(p.sale_price),
-                    unit: p.unit || 'Unit',
-                })),
-                payments: order.payments || [],
-            })));
+            setOrders(ordersData.map(order => {
+                const total = parseFloat(order.total_amount) || 0;
+                const paid = parseFloat(order.paid_amount) || 0;
+                const bal = parseFloat(order.balance) || 0;
+            
+                return {
+                    id: order.bill_id,
+                    // Prioritizes the entered previous_bill_number, falls back to standard bill_number
+                    bill_number: order.previous_bill_number || order.bill_number,
+                    diary_number: order.previous_diary_number || order.diary_number || null,
+                    customer_id: order.customer_id,
+                    customerId: order.customer_id,
+                    date: order.date,
+                    total_amount: total,
+                    paid_amount: paid,
+                    balance: bal,
+                    status: bal > 0 ? 'Balance' : 'Paid',
+                    products: (order.products || []).map(p => ({
+                        name: p.name,
+                        qty: p.qty,
+                        sale_price: parseFloat(p.sale_price),
+                        unit: p.unit || 'Unit',
+                    })),
+                    payments: order.payments || [],
+                };
+            }));
             setPaymentSources(sourcesData);
 
-            let newIdToSelect = selectNewId || selectedCustomerId;
-            if (customersData.length > 0 && !customersData.some(c => c.customer_id === newIdToSelect)) {
-                newIdToSelect = customersData[0].customer_id;
-            } else if (customersData.length === 0) {
-                newIdToSelect = null;
-            }
-            setSelectedCustomerId(newIdToSelect);
+            setSelectedCustomerId(prevId => {
+                if (selectNewId) return selectNewId;
+                if (customersData.length === 0) return null;
+                if (prevId && customersData.some(c => c.customer_id === prevId)) {
+                    return prevId;
+                }
+                return customersData[0].customer_id;
+            });
         } catch (err) {
             console.error('Failed to fetch data:', err);
             setError('Could not connect to the backend server or API failed.');
         } finally {
             setIsLoading(false);
         }
-    }, [selectedCustomerId]);
+    }, []);
 
     useEffect(() => {
         fetchData();
@@ -292,8 +465,7 @@ function CustomerAccountsPage() {
                 throw new Error(errData.error || 'Failed to update customer');
             }
 
-            // Update UI state directly
-            setCustomers(prev => prev.map(c => 
+            setCustomers(prev => prev.map(c =>
                 c.customer_id === updatedCustomer.customer_id ? updatedCustomer : c
             ));
             setEditingCustomer(null);
@@ -327,7 +499,7 @@ function CustomerAccountsPage() {
                 throw new Error(errorData.error || 'Failed to add payment');
             }
 
-            await fetchData();
+            await fetchData(selectedCustomerId);
             setSelectedOrderForCollection(null);
         } catch (err) {
             console.error('Error adding payment:', err);
@@ -339,8 +511,8 @@ function CustomerAccountsPage() {
     const filteredCustomers = useMemo(() => {
         const query = customerSearch.toLowerCase().trim();
         if (!query) return customers;
-        return customers.filter(c => 
-            c.name?.toLowerCase().includes(query) || 
+        return customers.filter(c =>
+            c.name?.toLowerCase().includes(query) ||
             c.phone?.toString().includes(query)
         );
     }, [customers, customerSearch]);
@@ -348,9 +520,9 @@ function CustomerAccountsPage() {
     const dateFilteredOrders = useMemo(() => {
         return orders.filter(ord => {
             if (!ord.date) return true;
-            const orderDate = new Date(ord.date);
-            if (startDate && orderDate < new Date(startDate)) return false;
-            if (endDate && orderDate > new Date(endDate)) return false;
+            const orderDateStr = new Date(ord.date).toISOString().substring(0, 10);
+            if (startDate && orderDateStr < startDate) return false;
+            if (endDate && orderDateStr > endDate) return false;
             return true;
         });
     }, [orders, startDate, endDate]);
@@ -461,7 +633,7 @@ function CustomerAccountsPage() {
                             onChange={(e) => setCustomerSearch(e.target.value)}
                         />
                     </div>
-                    
+
                     <ul className="vendor-selector-list">
                         {filteredCustomers.length > 0 ? (
                             filteredCustomers.map(customer => (
@@ -491,16 +663,27 @@ function CustomerAccountsPage() {
                             <div className="customer-detail-header">
                                 <div>
                                     <h2>Sales Details for {selectedCustomer.name}</h2>
-                                    <p>Phone: <strong>{selectedCustomer.phone || 'N/A'}</strong> | Address: <strong>{selectedCustomer.address || 'N/A'}</strong></p>
+                                    <p>
+                                        Phone: <strong>{selectedCustomer.phone || 'N/A'}</strong> | Address:{' '}
+                                        <strong>{selectedCustomer.address || 'N/A'}</strong>
+                                    </p>
                                 </div>
-                                <button 
-                                    className="edit-customer-btn" 
-                                    onClick={() => setEditingCustomer(selectedCustomer)}
-                                >
-                                    ✏️ Edit Customer
-                                </button>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button
+                                        className="add-btn"
+                                        onClick={() => setIsAddBillOpen(true)}
+                                    >
+                                        + Add Bill
+                                    </button>
+                                    <button
+                                        className="edit-customer-btn"
+                                        onClick={() => setEditingCustomer(selectedCustomer)}
+                                    >
+                                        ✏️ Edit Customer
+                                    </button>
+                                </div>
                             </div>
-                            
+
                             <div className="summary-cards">
                                 <div className="card total">
                                     <h3>Customer Total Sales</h3>
@@ -534,13 +717,17 @@ function CustomerAccountsPage() {
                                         customerOrders.map(ord => (
                                             <tr key={ord.id}>
                                                 <td>{ord.bill_number}</td>
-                                                <td>{ord.date}</td>
+                                                <td>{formatDate(ord.date)}</td>
                                                 <td>{parseFloat(ord.total_amount).toLocaleString()}</td>
                                                 <td>{parseFloat(ord.paid_amount).toLocaleString()}</td>
                                                 <td className={ord.balance > 0 ? 'text-red' : 'text-green'}>
                                                     {parseFloat(ord.balance).toLocaleString()}
                                                 </td>
-                                                <td><span className={`status-${ord.status.toLowerCase()}`}>{ord.status}</span></td>
+                                                <td>
+                                                    <span className={`status-${ord.status.toLowerCase()}`}>
+                                                        {ord.status}
+                                                    </span>
+                                                </td>
                                                 <td>
                                                     <button
                                                         className="view-btn"
@@ -560,7 +747,11 @@ function CustomerAccountsPage() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="7" className="empty-row-msg">No sales orders found for this customer.</td></tr>
+                                        <tr>
+                                            <td colSpan="7" className="empty-row-msg">
+                                                No sales orders found for this customer.
+                                            </td>
+                                        </tr>
                                     )}
                                 </tbody>
                             </table>
@@ -572,17 +763,19 @@ function CustomerAccountsPage() {
                     )}
                 </div>
             </div>
-            
+
             {/* Modals */}
             {selectedOrder && (
                 <div className="modal-backdrop" onClick={() => setSelectedOrder(null)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <OrderDetail order={selectedOrder} />
-                        <button className="modal-close-btn" onClick={() => setSelectedOrder(null)}>Close</button>
+                        <button className="modal-close-btn" onClick={() => setSelectedOrder(null)}>
+                            Close
+                        </button>
                     </div>
                 </div>
             )}
-            
+
             {selectedOrderForCollection && (
                 <CollectionModal
                     order={selectedOrderForCollection}
@@ -598,6 +791,17 @@ function CustomerAccountsPage() {
                     customer={editingCustomer}
                     onSave={handleUpdateCustomer}
                     onClose={() => setEditingCustomer(null)}
+                />
+            )}
+
+            {isAddBillOpen && selectedCustomer && (
+                <AddBillModal
+                    customer={selectedCustomer}
+                    onSuccess={() => {
+                        setIsAddBillOpen(false);
+                        fetchData(selectedCustomer.customer_id);
+                    }}
+                    onClose={() => setIsAddBillOpen(false)}
                 />
             )}
         </div>
